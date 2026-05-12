@@ -1,0 +1,282 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  DISABLED
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum InventoryMovementType {
+  INBOUND
+  OUTBOUND
+  ADJUSTMENT
+  SALE
+  RETURN
+}
+
+enum PaymentMethod {
+  CASH
+  PIX
+  DEBIT_CARD
+  CREDIT_CARD
+  CREDIT
+}
+
+enum SalePaymentStatus {
+  PAID
+  PARTIAL
+  PENDING
+  OVERDUE
+}
+
+enum ReceivableStatus {
+  OPEN
+  PARTIAL
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model User {
+  id              String            @id @default(cuid())
+  name            String?
+  email           String?           @unique
+  emailVerified   DateTime?
+  image           String?
+  phone           String?
+  status          UserStatus        @default(ACTIVE)
+  lastLoginAt     DateTime?
+  roleId          String?
+  role            Role?             @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  accounts        Account[]
+  sessions        Session[]
+  sales           Sale[]
+  inventoryMoves  InventoryMovement[]
+  paymentsCreated Payment[]         @relation("PaymentCreatedBy")
+  categories      Category[]
+  userPermissions UserPermission[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  slug        String           @unique
+  name        String
+  description String?
+  isSystem    Boolean          @default(true)
+  users       User[]
+  permissions RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  name        String
+  description String?
+  roles       RolePermission[]
+  users       UserPermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+model UserPermission {
+  id           String     @id @default(cuid())
+  userId       String
+  permissionId String
+  allowed      Boolean    @default(true)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+}
+
+model Customer {
+  id          String       @id @default(cuid())
+  name        String
+  phone       String       @unique
+  cpf         String?      @unique
+  address     String?
+  notes       String?
+  sales       Sale[]
+  receivables Receivable[]
+  payments    Payment[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  isActive    Boolean   @default(true)
+  products    Product[]
+  createdById String?
+  createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Product {
+  id                 String              @id @default(cuid())
+  code               String?             @unique
+  name               String
+  description        String?
+  costPrice          Decimal             @db.Decimal(10, 2)
+  salePrice          Decimal             @db.Decimal(10, 2)
+  stockQuantity      Int                 @default(0)
+  lowStockThreshold  Int                 @default(5)
+  status             ProductStatus       @default(ACTIVE)
+  categoryId         String
+  category           Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  saleItems          SaleItem[]
+  inventoryMoves     InventoryMovement[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model InventoryMovement {
+  id            String                @id @default(cuid())
+  productId     String
+  performedById String?
+  type          InventoryMovementType
+  quantity      Int
+  previousStock Int
+  currentStock  Int
+  note          String?
+  product       Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
+  performedBy   User?                 @relation(fields: [performedById], references: [id], onDelete: SetNull)
+  createdAt     DateTime              @default(now())
+}
+
+model Sale {
+  id            String            @id @default(cuid())
+  customerId    String
+  sellerId      String?
+  paymentMethod PaymentMethod
+  paymentStatus SalePaymentStatus @default(PENDING)
+  subtotal      Decimal           @db.Decimal(10, 2)
+  discount      Decimal           @default(0) @db.Decimal(10, 2)
+  total         Decimal           @db.Decimal(10, 2)
+  soldAt        DateTime          @default(now())
+  dueDate       DateTime?
+  notes         String?
+  customer      Customer          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  seller        User?             @relation(fields: [sellerId], references: [id], onDelete: SetNull)
+  items         SaleItem[]
+  receivable    Receivable?
+  payments      Payment[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+model SaleItem {
+  id           String   @id @default(cuid())
+  saleId       String
+  productId    String
+  quantity     Int
+  unitPrice    Decimal  @db.Decimal(10, 2)
+  costSnapshot Decimal  @db.Decimal(10, 2)
+  total        Decimal  @db.Decimal(10, 2)
+  sale         Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdAt    DateTime @default(now())
+}
+
+model Receivable {
+  id             String           @id @default(cuid())
+  customerId     String
+  saleId         String?          @unique
+  status         ReceivableStatus @default(OPEN)
+  originalAmount Decimal          @db.Decimal(10, 2)
+  paidAmount     Decimal          @default(0) @db.Decimal(10, 2)
+  balanceDue     Decimal          @db.Decimal(10, 2)
+  dueDate        DateTime
+  lastPaymentAt  DateTime?
+  notes          String?
+  customer       Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  sale           Sale?            @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  payments       Payment[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  customerId    String?
+  saleId        String?
+  receivableId  String?
+  createdById   String?
+  method        PaymentMethod
+  amount        Decimal       @db.Decimal(10, 2)
+  receivedAt    DateTime      @default(now())
+  note          String?
+  customer      Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  sale          Sale?         @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  receivable    Receivable?   @relation(fields: [receivableId], references: [id], onDelete: SetNull)
+  createdBy     User?         @relation("PaymentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt     DateTime      @default(now())
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
