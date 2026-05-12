@@ -15,6 +15,7 @@ function nextWithPathname(req: NextRequestWithAuth) {
 function sellerAllowedPath(path: string) {
   if (path.startsWith("/api/auth")) return true;
   if (path === "/signin" || path.startsWith("/signin/")) return true;
+  if (path === "/products") return true;
   if (path === "/sales" || path.startsWith("/sales/")) return true;
   if (path === "/inventory" || path.startsWith("/inventory/")) return true;
   if (path === "/transfers" || path.startsWith("/transfers/")) return true;

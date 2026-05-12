@@ -8,6 +8,7 @@ import { ptBR } from "date-fns/locale";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { Card } from "@/components/ui/card";
 import {
   disableSellerAction,
@@ -97,14 +98,13 @@ export function SellerDetailsContent({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
-        <Button
-          variant="ghost"
+        <ActionButton 
+          variant="secondary"
           onClick={() => router.push("/sellers")}
-          className="rounded-full px-4 text-[var(--muted-foreground)] hover:bg-[var(--panel-strong)] hover:text-[var(--foreground)]"
+          icon={ArrowLeft}
         >
-          <ArrowLeft className="mr-2 h-4 w-4" />
           Voltar para a lista
-        </Button>
+        </ActionButton>
       </div>
 
       {error && (

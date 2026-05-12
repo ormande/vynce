@@ -5,7 +5,13 @@ import { db } from "@/lib/db";
 export async function listProducts(params?: {
   search?: string;
   status?: ProductStatus | "ALL";
+  page?: number;
+  pageSize?: number;
 }) {
+  const page = params?.page ?? 1;
+  const pageSize = params?.pageSize ?? 20;
+  const skip = (page - 1) * pageSize;
+
   const where: Prisma.ProductWhereInput = {
     ...(params?.status && params.status !== "ALL"
       ? { status: params.status }
@@ -20,13 +26,26 @@ export async function listProducts(params?: {
       : {}),
   };
 
-  return db.product.findMany({
-    where,
-    include: {
-      category: true,
-    },
-    orderBy: [{ status: "asc" }, { name: "asc" }],
-  });
+  const [items, total] = await Promise.all([
+    db.product.findMany({
+      where,
+      include: {
+        category: true,
+      },
+      orderBy: [{ name: "asc" }],
+      skip,
+      take: pageSize,
+    }),
+    db.product.count({ where }),
+  ]);
+
+  return {
+    items,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  };
 }
 
 export async function listCategories() {

@@ -35,7 +35,7 @@ function FieldLabel({
   required?: boolean;
 }) {
   return (
-    <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
+    <label className="mb-2 block text-sm font-medium text-[var(--foreground)] whitespace-nowrap">
       {label}
       {required ? <span className="ml-1 text-[#7b3148]">*</span> : null}
     </label>
@@ -50,14 +50,18 @@ function FieldError({ message }: { message?: string }) {
 
 export function ProductForm({
   categories,
+  initialValues,
+  onSuccess,
 }: {
   categories: { id: string; name: string }[];
+  initialValues?: ProductFormValues & { id: string };
+  onSuccess?: () => void;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const form = useForm<ProductFormValues, undefined, ProductInput>({
     resolver: zodResolver(productSchema),
-    defaultValues: {
+    defaultValues: initialValues || {
       name: "",
       categoryId: "",
       costPrice: "",
@@ -83,8 +87,11 @@ export function ProductForm({
 
   async function onSubmit(values: ProductInput) {
     setError(null);
-    const response = await fetch("/api/products", {
-      method: "POST",
+    const url = initialValues ? `/api/products/${initialValues.id}` : "/api/products";
+    const method = initialValues ? "PATCH" : "POST";
+
+    const response = await fetch(url, {
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),
     });
@@ -111,18 +118,11 @@ export function ProductForm({
       return;
     }
 
-    form.reset({
-      name: "",
-      categoryId: "",
-      costPrice: "",
-      salePrice: "",
-      minPrice: "",
-      stockQuantity: "",
-      lowStockThreshold: "",
-      status: "",
-      code: "",
-      description: "",
-    });
+    if (onSuccess) {
+      onSuccess();
+    } else {
+      router.push("/products");
+    }
     router.refresh();
   }
 
@@ -130,16 +130,17 @@ export function ProductForm({
     <Card>
       <div className="mb-5">
         <h3 className="text-lg font-semibold text-[var(--foreground)]">
-          Novo produto
+          {initialValues ? "Editar produto" : "Novo produto"}
         </h3>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-          Cadastre itens com categoria, preço, estoque e status prontos para
-          evolução futura.
+          {initialValues
+            ? "Atualize as informações do item no catálogo."
+            : "Cadastre itens com categoria, preço, estoque e status prontos para evolução futura."}
         </p>
       </div>
 
-      <form className="grid gap-4 md:grid-cols-2" onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="md:col-span-2">
+      <form className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" onSubmit={form.handleSubmit(onSubmit)}>
+        <div className="sm:col-span-2 lg:col-span-3 xl:col-span-2">
           <FieldLabel label="Nome do produto" required />
           <Input
             placeholder="Ex.: Café torrado premium"
@@ -272,7 +273,11 @@ export function ProductForm({
                 ? `${errorTone.border} ${errorTone.ring}`
                 : undefined
             }
-            {...form.register("stockQuantity")}
+            {...form.register("stockQuantity", {
+              onChange: (e) => {
+                e.target.value = e.target.value.replace(/\D/g, "");
+              },
+            })}
           />
           <FieldError message={form.formState.errors.stockQuantity?.message} />
         </div>
@@ -282,11 +287,15 @@ export function ProductForm({
           <Input
             placeholder="Ex.: 5"
             inputMode="numeric"
-            {...form.register("lowStockThreshold")}
+            {...form.register("lowStockThreshold", {
+              onChange: (e) => {
+                e.target.value = e.target.value.replace(/\D/g, "");
+              },
+            })}
           />
         </div>
 
-        <div className="md:col-span-2">
+        <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
           <FieldLabel label="Descrição" />
           <Textarea
             placeholder="Detalhes adicionais do produto"
@@ -295,11 +304,11 @@ export function ProductForm({
         </div>
 
         {error ? (
-          <p className={`text-sm md:col-span-2 ${errorTone.text}`}>{error}</p>
+          <p className={`text-sm sm:col-span-2 lg:col-span-3 xl:col-span-4 ${errorTone.text}`}>{error}</p>
         ) : null}
 
-        <div className="md:col-span-2">
-          <Button type="submit">Salvar produto</Button>
+        <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
+          <Button type="submit" className="w-full sm:w-auto">Salvar produto</Button>
         </div>
       </form>
     </Card>

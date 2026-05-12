@@ -30,3 +30,45 @@ export function hasPermission(
 ) {
   return permissions?.includes(permission) ?? false;
 }
+
+export function canTransferProduct(params: {
+  roleSlug: string;
+  fromBranchId: string;
+  toBranchId: string;
+  userBranchIds: string[];
+  warehouseBranchId: string;
+}): { allowed: boolean; reason?: string } {
+  const { roleSlug, fromBranchId, toBranchId, userBranchIds, warehouseBranchId } =
+    params;
+
+  if (roleSlug === "owner") {
+    return { allowed: true };
+  }
+
+  if (roleSlug === "seller") {
+    if (!userBranchIds.includes(fromBranchId)) {
+      return {
+        allowed: false,
+        reason: "Você só pode transferir produtos da sua própria unidade.",
+      };
+    }
+
+    if (toBranchId === warehouseBranchId) {
+      return {
+        allowed: false,
+        reason: "Vendedores não podem transferir produtos para o depósito central.",
+      };
+    }
+
+    if (toBranchId === fromBranchId) {
+      return {
+        allowed: false,
+        reason: "A unidade de destino deve ser diferente da unidade de origem.",
+      };
+    }
+
+    return { allowed: true };
+  }
+
+  return { allowed: false, reason: "Papel de usuário não reconhecido." };
+}

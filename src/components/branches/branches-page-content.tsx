@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { updateBranchAction } from "@/modules/branches/actions";
@@ -93,14 +94,9 @@ export function BranchesPageContent({
           {branches.length} unidade(s) cadastrada(s).
         </p>
         {canWrite ? (
-          <Link
-            href="/branches/new"
-            className="inline-flex items-center gap-2 rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(35,70,58,0.18)] transition hover:bg-[var(--accent-strong)] [&_svg]:text-white"
-            style={{ color: "#fff" }}
-          >
-            <Plus className="h-4 w-4 shrink-0 text-white" aria-hidden />
-            <span className="text-white">Nova unidade</span>
-          </Link>
+          <ActionButton href="/branches/new" icon={Plus}>
+            Nova unidade
+          </ActionButton>
         ) : null}
       </div>
 
