@@ -21,11 +21,21 @@ type CustomerOption = {
   name: string;
 };
 
+type BranchOption = {
+  id: string;
+  name: string;
+  isWarehouse: boolean;
+};
+
 export function SaleForm({
+  branches,
+  defaultBranchId,
   customers,
   products,
   showCustomerSelector = true,
 }: {
+  branches: BranchOption[];
+  defaultBranchId: string;
   customers: CustomerOption[];
   products: ProductOption[];
   /** Quando `false`, usa o único cliente passado (ex.: venda avulsa) sem exibir o campo. */
@@ -33,6 +43,7 @@ export function SaleForm({
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [branchId, setBranchId] = useState(defaultBranchId);
   const [customerId, setCustomerId] = useState(customers[0]?.id ?? "");
   const [productId, setProductId] = useState(products[0]?.id ?? "");
   const [quantity, setQuantity] = useState<number>(1);
@@ -46,10 +57,16 @@ export function SaleForm({
     event.preventDefault();
     setError(null);
 
+    if (!branchId) {
+      setError("Nenhuma unidade disponível para registrar a venda.");
+      return;
+    }
+
     const response = await fetch("/api/sales", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        branchId,
         customerId,
         paymentMethod,
         soldAt,
@@ -86,6 +103,20 @@ export function SaleForm({
       </div>
 
       <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+        {branches.length > 0 ? (
+          <Select value={branchId} onChange={(e) => setBranchId(e.target.value)}>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+                {branch.isWarehouse ? " (depósito)" : ""}
+              </option>
+            ))}
+          </Select>
+        ) : (
+          <p className="text-sm text-rose-700 md:col-span-2">
+            Cadastre uma unidade ativa antes de registrar vendas.
+          </p>
+        )}
         {showCustomerSelector ? (
           <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
             {customers.map((customer) => (
@@ -139,7 +170,9 @@ export function SaleForm({
           <p className="text-sm text-rose-600 md:col-span-2">{error}</p>
         ) : null}
         <div className="md:col-span-2">
-          <Button type="submit">Registrar venda</Button>
+          <Button type="submit" disabled={branches.length === 0 || !branchId}>
+            Registrar venda
+          </Button>
         </div>
       </form>
     </Card>

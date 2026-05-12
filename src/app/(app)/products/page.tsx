@@ -38,7 +38,8 @@ export default async function ProductsPage() {
               <tr className="text-left text-sm text-[var(--muted-foreground)]">
                 <th className="px-4 py-2">Produto</th>
                 <th className="px-4 py-2">Categoria</th>
-                <th className="px-4 py-2">Preço</th>
+                <th className="px-4 py-2">Preço sugerido</th>
+                <th className="px-4 py-2">Piso mínimo</th>
                 <th className="px-4 py-2">Estoque</th>
                 <th className="px-4 py-2">Status</th>
               </tr>
@@ -55,6 +56,9 @@ export default async function ProductsPage() {
                   </td>
                   <td className="px-4 py-4 text-sm text-[var(--muted-foreground)]">
                     {formatCurrency(product.salePrice.toString())}
+                  </td>
+                  <td className="px-4 py-4 text-sm text-[var(--muted-foreground)]">
+                    {formatCurrency(product.minPrice.toString())}
                   </td>
                   <td className="px-4 py-4 font-medium text-[var(--foreground)]">
                     {product.stockQuantity}

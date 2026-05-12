@@ -20,7 +20,7 @@ export async function AppShell({
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[1680px] flex-col gap-6 px-4 py-4 lg:flex-row lg:px-6">
       <div className="lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)]">
-        <AppSidebar pathname={pathname} />
+        <AppSidebar pathname={pathname} roleSlug={session?.user?.roleSlug} />
       </div>
 
       <main className="flex-1 rounded-[36px] border border-white/60 bg-[rgba(252,250,247,0.82)] p-6 shadow-[0_30px_90px_rgba(15,23,42,0.08)] backdrop-blur lg:p-8">
@@ -29,7 +29,11 @@ export async function AppShell({
           subtitle={subtitle}
           userName={session?.user?.name}
           roleLabel={
-            session?.user?.roleSlug === "owner" ? "Owner/Admin" : "Funcionario"
+            session?.user?.roleSlug === "owner"
+              ? "Owner/Admin"
+              : session?.user?.roleSlug === "seller"
+                ? "Vendedor"
+                : "Equipe"
           }
         />
         <div className="mt-8">{children}</div>

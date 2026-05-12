@@ -16,7 +16,7 @@ Sistema web fullstack para gestao comercial de pequenos e medios negocios, com f
 ## Principais funcionalidades da base
 
 - Login com Google e persistencia do usuario no banco
-- Papeis `owner` e `employee`, com estrutura pronta para permissoes
+- Papeis `owner` e `seller` (Vendedor), com estrutura pronta para permissoes
 - Dashboard com metricas de vendas, pendencias, clientes e estoque
 - Cadastro de clientes com saldo devedor e historico derivados
 - Cadastro de produtos com categorias, precos, status e estoque
@@ -148,7 +148,7 @@ http://localhost:3000
 O seed cria:
 
 - permissoes base
-- papeis `owner` e `employee`
+- papeis `owner` e `seller` (Vendedor)
 - categorias iniciais
 - produtos de exemplo
 - clientes de exemplo
@@ -157,7 +157,7 @@ O seed cria:
 Regra inicial de acesso:
 
 - o primeiro usuario autenticado via Google vira `Owner/Admin`
-- usuarios seguintes entram como `Funcionario`
+- usuarios seguintes entram como `Vendedor` (`seller`)
 
 ## Status atual da base
 

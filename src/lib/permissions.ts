@@ -13,6 +13,12 @@ export const permissionCatalog = {
   reportsRead: "reports:read",
   usersManage: "users:manage",
   settingsManage: "settings:manage",
+  branchesRead: "branches:read",
+  branchesWrite: "branches:write",
+  branchesTransfer: "branches:transfer",
+  transfersRead: "transfers:read",
+  transfersWrite: "transfers:write",
+  transfersConfirm: "transfers:confirm",
 } as const;
 
 export type PermissionKey =

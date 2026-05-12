@@ -17,6 +17,12 @@ const permissionKeys = [
   ["reports:read", "Visualizar relatórios"],
   ["users:manage", "Gerenciar usuários"],
   ["settings:manage", "Gerenciar configurações"],
+  ["branches:read", "Visualizar unidades"],
+  ["branches:write", "Gerenciar unidades"],
+  ["branches:transfer", "Transferir estoque entre unidades"],
+  ["transfers:read", "Visualizar transferências"],
+  ["transfers:write", "Solicitar transferências"],
+  ["transfers:confirm", "Confirmar recebimento de transferências"],
 ] as const;
 
 async function main() {
@@ -43,21 +49,21 @@ async function main() {
     },
   });
 
-  const employeeRole = await prisma.role.upsert({
-    where: { slug: "employee" },
+  const sellerRole = await prisma.role.upsert({
+    where: { slug: "seller" },
     update: {
-      name: "Funcionário",
-      description: "Acesso operacional com permissões restritas",
+      name: "Vendedor",
+      description: "Acesso operacional à venda, estoque da unidade e transferências",
     },
     create: {
-      slug: "employee",
-      name: "Funcionário",
-      description: "Acesso operacional com permissões restritas",
+      slug: "seller",
+      name: "Vendedor",
+      description: "Acesso operacional à venda, estoque da unidade e transferências",
     },
   });
 
   await prisma.rolePermission.deleteMany({
-    where: { roleId: { in: [ownerRole.id, employeeRole.id] } },
+    where: { roleId: { in: [ownerRole.id, sellerRole.id] } },
   });
 
   await prisma.rolePermission.createMany({
@@ -67,27 +73,88 @@ async function main() {
     })),
   });
 
-  const employeePermissions = permissions.filter((permission) =>
-    [
-      "dashboard:view",
-      "customers:read",
-      "customers:write",
-      "products:read",
-      "inventory:read",
-      "sales:read",
-      "sales:write",
-      "receivables:read",
-      "receivables:write",
-      "reports:read",
-    ].includes(permission.key),
+  const sellerPermissionKeys = new Set<string>([
+    "customers:read",
+    "products:read",
+    "inventory:read",
+    "sales:read",
+    "sales:write",
+    "transfers:read",
+    "transfers:write",
+    "transfers:confirm",
+  ]);
+
+  const sellerPermissions = permissions.filter((permission) =>
+    sellerPermissionKeys.has(permission.key),
   );
 
   await prisma.rolePermission.createMany({
-    data: employeePermissions.map((permission) => ({
-      roleId: employeeRole.id,
+    data: sellerPermissions.map((permission) => ({
+      roleId: sellerRole.id,
       permissionId: permission.id,
     })),
   });
+
+  const seedBranches = [
+    {
+      id: "seed-br-depot",
+      name: "Depósito Central",
+      address: null as string | null,
+      isWarehouse: true,
+    },
+    {
+      id: "seed-br-loja1",
+      name: "Loja Unidade 01",
+      address: null as string | null,
+      isWarehouse: false,
+    },
+    {
+      id: "seed-br-loja2",
+      name: "Loja Unidade 02",
+      address: null as string | null,
+      isWarehouse: false,
+    },
+  ];
+
+  for (const branch of seedBranches) {
+    await prisma.branch.upsert({
+      where: { id: branch.id },
+      update: {
+        name: branch.name,
+        address: branch.address,
+        isWarehouse: branch.isWarehouse,
+        isActive: true,
+      },
+      create: {
+        id: branch.id,
+        name: branch.name,
+        address: branch.address,
+        isWarehouse: branch.isWarehouse,
+        isActive: true,
+      },
+    });
+  }
+
+  const ownerUsers = await prisma.user.findMany({
+    where: { roleId: ownerRole.id },
+    select: { id: true },
+  });
+  const allBranches = await prisma.branch.findMany({ select: { id: true } });
+  for (const owner of ownerUsers) {
+    for (const br of allBranches) {
+      await prisma.userBranch.upsert({
+        where: {
+          userId_branchId: { userId: owner.id, branchId: br.id },
+        },
+        create: {
+          userId: owner.id,
+          branchId: br.id,
+          accessAll: true,
+        },
+        update: { accessAll: true },
+      });
+    }
+  }
 
   const categories = await Promise.all([
     prisma.category.upsert({
@@ -114,6 +181,7 @@ async function main() {
       code: "CAF-500",
       costPrice: 13.5,
       salePrice: 21.9,
+      minPrice: 13.5,
       stockQuantity: 24,
       lowStockThreshold: 8,
       status: ProductStatus.ACTIVE,
@@ -124,6 +192,7 @@ async function main() {
       code: "DET-500",
       costPrice: 2.85,
       salePrice: 4.99,
+      minPrice: 2.5,
       stockQuantity: 7,
       lowStockThreshold: 10,
       status: ProductStatus.ACTIVE,
@@ -134,6 +203,7 @@ async function main() {
       code: "AGU-1500",
       costPrice: 2.2,
       salePrice: 3.9,
+      minPrice: 2.2,
       stockQuantity: 32,
       lowStockThreshold: 12,
       status: ProductStatus.ACTIVE,
@@ -145,6 +215,65 @@ async function main() {
       where: { code: product.code },
       update: product,
       create: product,
+    });
+  }
+
+  const depotId = "seed-br-depot";
+  const loja1Id = "seed-br-loja1";
+  const loja2Id = "seed-br-loja2";
+
+  const allProductsAfterSeed = await prisma.product.findMany();
+  for (const p of allProductsAfterSeed) {
+    await prisma.branchStock.upsert({
+      where: { branchId_productId: { branchId: depotId, productId: p.id } },
+      update: {
+        quantity: p.stockQuantity,
+        lowStockThreshold: p.lowStockThreshold,
+      },
+      create: {
+        branchId: depotId,
+        productId: p.id,
+        quantity: p.stockQuantity,
+        lowStockThreshold: p.lowStockThreshold,
+      },
+    });
+    await prisma.branchStock.upsert({
+      where: { branchId_productId: { branchId: loja1Id, productId: p.id } },
+      update: {},
+      create: {
+        branchId: loja1Id,
+        productId: p.id,
+        quantity: 0,
+        lowStockThreshold: p.lowStockThreshold,
+      },
+    });
+    await prisma.branchStock.upsert({
+      where: { branchId_productId: { branchId: loja2Id, productId: p.id } },
+      update: {},
+      create: {
+        branchId: loja2Id,
+        productId: p.id,
+        quantity: 0,
+        lowStockThreshold: p.lowStockThreshold,
+      },
+    });
+  }
+
+  for (const code of ["CAF-500", "DET-500", "AGU-1500"] as const) {
+    const prod = await prisma.product.findUnique({ where: { code } });
+    if (!prod) continue;
+    const depotRow = await prisma.branchStock.findUnique({
+      where: { branchId_productId: { branchId: depotId, productId: prod.id } },
+    });
+    const move = Math.min(10, depotRow?.quantity ?? 0);
+    if (move <= 0) continue;
+    await prisma.branchStock.update({
+      where: { branchId_productId: { branchId: depotId, productId: prod.id } },
+      data: { quantity: { decrement: move } },
+    });
+    await prisma.branchStock.update({
+      where: { branchId_productId: { branchId: loja1Id, productId: prod.id } },
+      data: { quantity: { increment: move } },
     });
   }
 
@@ -179,9 +308,10 @@ async function main() {
 
   const sale = await prisma.sale.upsert({
     where: { id: "seed-sale-marina" },
-    update: {},
+    update: { branchId: loja1Id },
     create: {
       id: "seed-sale-marina",
+      branchId: loja1Id,
       customerId: customer1.id,
       paymentMethod: PaymentMethod.CREDIT,
       paymentStatus: "PARTIAL",
@@ -232,9 +362,10 @@ async function main() {
 
   await prisma.sale.upsert({
     where: { id: "seed-sale-carlos" },
-    update: {},
+    update: { branchId: loja1Id },
     create: {
       id: "seed-sale-carlos",
+      branchId: loja1Id,
       customerId: customer2.id,
       paymentMethod: PaymentMethod.CASH,
       paymentStatus: "PAID",
@@ -272,6 +403,24 @@ async function main() {
     await prisma.payment.updateMany({
       where: { saleId: sale.id },
       data: { receivableId: receivable.id },
+    });
+  }
+
+  const seedSaleDeltas: { code: string; qty: number }[] = [
+    { code: "CAF-500", qty: 1 },
+    { code: "AGU-1500", qty: 2 },
+    { code: "DET-500", qty: 4 },
+  ];
+  for (const { code, qty } of seedSaleDeltas) {
+    const prod = await prisma.product.findUnique({ where: { code } });
+    if (!prod) continue;
+    await prisma.branchStock.update({
+      where: { branchId_productId: { branchId: loja1Id, productId: prod.id } },
+      data: { quantity: { decrement: qty } },
+    });
+    await prisma.product.update({
+      where: { id: prod.id },
+      data: { stockQuantity: { decrement: qty } },
     });
   }
 

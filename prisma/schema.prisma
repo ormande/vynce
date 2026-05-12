@@ -29,6 +29,13 @@ enum InventoryMovementType {
   ADJUSTMENT
   SALE
   RETURN
+  TRANSFER_IN
+  TRANSFER_OUT
+}
+
+enum SessionStatus {
+  OPEN
+  CLOSED
 }
 
 enum PaymentMethod {
@@ -54,6 +61,12 @@ enum ReceivableStatus {
   CANCELLED
 }
 
+enum TransferStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
 model User {
   id              String            @id @default(cuid())
   name            String?
@@ -72,6 +85,10 @@ model User {
   paymentsCreated Payment[]         @relation("PaymentCreatedBy")
   categories      Category[]
   userPermissions UserPermission[]
+  userBranches    UserBranch[]
+  cashSessions    CashRegisterSession[]
+  transfersRequested StockTransfer[] @relation("StockTransferRequestedBy")
+  transfersConfirmed StockTransfer[] @relation("StockTransferConfirmedBy")
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }
@@ -120,6 +137,65 @@ model UserPermission {
   @@unique([userId, permissionId])
 }
 
+model Branch {
+  id              String                 @id @default(cuid())
+  name            String
+  address         String?
+  isActive        Boolean                @default(true)
+  isWarehouse     Boolean                @default(false)
+  userBranches    UserBranch[]
+  sales           Sale[]
+  branchStocks    BranchStock[]
+  inventoryMoves  InventoryMovement[]
+  cashSessions    CashRegisterSession[]
+  transfersOut    StockTransfer[]        @relation("StockTransferFrom")
+  transfersIn     StockTransfer[]        @relation("StockTransferTo")
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+}
+
+model UserBranch {
+  id         String   @id @default(cuid())
+  userId     String
+  branchId   String
+  accessAll  Boolean  @default(false)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch     Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, branchId])
+}
+
+model BranchStock {
+  id                String   @id @default(cuid())
+  branchId          String
+  productId         String
+  quantity          Int      @default(0)
+  lowStockThreshold Int      @default(5)
+  branch            Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, productId])
+}
+
+model CashRegisterSession {
+  id              String        @id @default(cuid())
+  branchId        String
+  userId          String
+  status          SessionStatus @default(OPEN)
+  openedAt        DateTime      @default(now())
+  closedAt        DateTime?
+  openingBalance  Decimal       @default(0) @db.Decimal(10, 2)
+  closingBalance  Decimal?      @db.Decimal(10, 2)
+  notes           String?
+  branch          Branch        @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sales           Sale[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
 model Customer {
   id          String       @id @default(cuid())
   name        String
@@ -153,6 +229,7 @@ model Product {
   description        String?
   costPrice          Decimal             @db.Decimal(10, 2)
   salePrice          Decimal             @db.Decimal(10, 2)
+  minPrice           Decimal             @default(0) @db.Decimal(10, 2)
   stockQuantity      Int                 @default(0)
   lowStockThreshold  Int                 @default(5)
   status             ProductStatus       @default(ACTIVE)
@@ -160,8 +237,35 @@ model Product {
   category           Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   saleItems          SaleItem[]
   inventoryMoves     InventoryMovement[]
+  branchStocks       BranchStock[]
+  stockTransfers     StockTransfer[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+}
+
+model StockTransfer {
+  id              String         @id @default(cuid())
+  fromBranchId    String
+  toBranchId      String
+  productId       String
+  requestedById   String
+  confirmedById   String?
+  quantity        Int
+  status          TransferStatus @default(PENDING)
+  requestedAt     DateTime       @default(now())
+  confirmedAt     DateTime?
+  notes           String?
+  fromBranch      Branch         @relation("StockTransferFrom", fields: [fromBranchId], references: [id], onDelete: Restrict)
+  toBranch        Branch         @relation("StockTransferTo", fields: [toBranchId], references: [id], onDelete: Restrict)
+  product         Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  requestedBy     User           @relation("StockTransferRequestedBy", fields: [requestedById], references: [id], onDelete: Restrict)
+  confirmedBy     User?          @relation("StockTransferConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([toBranchId, status])
+  @@index([fromBranchId])
+  @@index([requestedById])
 }
 
 model InventoryMovement {
@@ -173,30 +277,36 @@ model InventoryMovement {
   previousStock Int
   currentStock  Int
   note          String?
+  branchId      String?
   product       Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
+  branch        Branch?               @relation(fields: [branchId], references: [id], onDelete: SetNull)
   performedBy   User?                 @relation(fields: [performedById], references: [id], onDelete: SetNull)
   createdAt     DateTime              @default(now())
 }
 
 model Sale {
-  id            String            @id @default(cuid())
+  id            String                 @id @default(cuid())
+  branchId      String
+  sessionId     String?
   customerId    String
   sellerId      String?
   paymentMethod PaymentMethod
-  paymentStatus SalePaymentStatus @default(PENDING)
-  subtotal      Decimal           @db.Decimal(10, 2)
-  discount      Decimal           @default(0) @db.Decimal(10, 2)
-  total         Decimal           @db.Decimal(10, 2)
-  soldAt        DateTime          @default(now())
+  paymentStatus SalePaymentStatus      @default(PENDING)
+  subtotal      Decimal                @db.Decimal(10, 2)
+  discount      Decimal                @default(0) @db.Decimal(10, 2)
+  total         Decimal                @db.Decimal(10, 2)
+  soldAt        DateTime               @default(now())
   dueDate       DateTime?
   notes         String?
-  customer      Customer          @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  seller        User?             @relation(fields: [sellerId], references: [id], onDelete: SetNull)
+  branch        Branch                 @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  session       CashRegisterSession?   @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  customer      Customer               @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  seller        User?                  @relation(fields: [sellerId], references: [id], onDelete: SetNull)
   items         SaleItem[]
   receivable    Receivable?
   payments      Payment[]
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
 }
 
 model SaleItem {

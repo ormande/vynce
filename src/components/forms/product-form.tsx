@@ -62,6 +62,7 @@ export function ProductForm({
       categoryId: "",
       costPrice: "",
       salePrice: "",
+      minPrice: "",
       stockQuantity: "",
       lowStockThreshold: "",
       status: "",
@@ -115,6 +116,7 @@ export function ProductForm({
       categoryId: "",
       costPrice: "",
       salePrice: "",
+      minPrice: "",
       stockQuantity: "",
       lowStockThreshold: "",
       status: "",
@@ -216,7 +218,7 @@ export function ProductForm({
         </div>
 
         <div>
-          <FieldLabel label="Preço de venda" required />
+          <FieldLabel label="Preço sugerido de venda" required />
           <Controller
             control={form.control}
             name="salePrice"
@@ -235,6 +237,28 @@ export function ProductForm({
             )}
           />
           <FieldError message={form.formState.errors.salePrice?.message} />
+        </div>
+
+        <div>
+          <FieldLabel label="Preço mínimo de venda" required />
+          <Controller
+            control={form.control}
+            name="minPrice"
+            render={({ field }) => (
+              <CurrencyInput
+                placeholder="R$ 0,00"
+                value={field.value === undefined ? "" : String(field.value)}
+                onChange={field.onChange}
+                aria-invalid={!!form.formState.errors.minPrice}
+                className={
+                  form.formState.errors.minPrice
+                    ? `${errorTone.border} ${errorTone.ring}`
+                    : undefined
+                }
+              />
+            )}
+          />
+          <FieldError message={form.formState.errors.minPrice?.message} />
         </div>
 
         <div>

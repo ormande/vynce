@@ -12,6 +12,8 @@ declare module "next-auth" {
       id: string;
       roleSlug?: string;
       permissions: string[];
+      branchIds: string[];
+      accessAll: boolean;
     };
   }
 }
@@ -19,13 +21,16 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     roleSlug?: string;
+    status?: string;
     permissions?: string[];
+    branchIds?: string[];
+    accessAll?: boolean;
   }
 }
 
 async function getDefaultRole(): Promise<Role | null> {
   return db.role.findFirst({
-    where: { slug: "employee" },
+    where: { slug: "seller" },
   });
 }
 
@@ -54,6 +59,9 @@ export const authOptions: NextAuthOptions = {
       });
 
       if (currentUser) {
+        if (currentUser.status === "DISABLED") {
+          return "/signin?error=AccountDisabled";
+        }
         await db.user.update({
           where: { id: currentUser.id },
           data: { lastLoginAt: new Date() },
@@ -79,6 +87,9 @@ export const authOptions: NextAuthOptions = {
           userPermissions: {
             include: { permission: true },
           },
+          userBranches: {
+            select: { branchId: true, accessAll: true },
+          },
         },
       });
 
@@ -94,7 +105,10 @@ export const authOptions: NextAuthOptions = {
 
       token.sub = dbUser.id;
       token.roleSlug = dbUser.role?.slug;
+      token.status = dbUser.status;
       token.permissions = [...new Set([...rolePermissions, ...userOverrides])];
+      token.branchIds = dbUser.userBranches.map((ub) => ub.branchId);
+      token.accessAll = dbUser.userBranches.some((ub) => ub.accessAll);
       return token;
     },
     async session({ session, token }) {
@@ -102,6 +116,10 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.sub;
         session.user.roleSlug = token.roleSlug;
         session.user.permissions = token.permissions ?? [];
+      }
+      if (session.user) {
+        session.user.branchIds = (token.branchIds as string[] | undefined) ?? [];
+        session.user.accessAll = Boolean(token.accessAll);
       }
 
       return session;
@@ -111,7 +129,7 @@ export const authOptions: NextAuthOptions = {
     async createUser({ user }) {
       const usersCount = await db.user.count();
       const role = await db.role.findFirst({
-        where: { slug: usersCount <= 1 ? "owner" : "employee" },
+        where: { slug: usersCount <= 1 ? "owner" : "seller" },
       });
       const fallbackRole = role ?? (await getDefaultRole());
 
@@ -122,6 +140,25 @@ export const authOptions: NextAuthOptions = {
           lastLoginAt: new Date(),
         },
       });
+
+      if (fallbackRole?.slug === "owner") {
+        const branches = await db.branch.findMany({ select: { id: true } });
+        await Promise.all(
+          branches.map((branch) =>
+            db.userBranch.upsert({
+              where: {
+                userId_branchId: { userId: user.id, branchId: branch.id },
+              },
+              create: {
+                userId: user.id,
+                branchId: branch.id,
+                accessAll: true,
+              },
+              update: { accessAll: true },
+            }),
+          ),
+        );
+      }
     },
   },
 };

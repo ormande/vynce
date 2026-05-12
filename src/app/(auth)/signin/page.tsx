@@ -4,7 +4,13 @@ import { ShieldCheck } from "lucide-react";
 import { GoogleSignInButton } from "@/components/auth/google-signin-button";
 import { Card } from "@/components/ui/card";
 
-export default function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-6xl items-center px-6 py-8">
       <div className="grid w-full gap-6 lg:grid-cols-[1.1fr_0.9fr]">
@@ -24,7 +30,7 @@ export default function SignInPage() {
             </div>
             <p className="text-sm text-emerald-50/80">
               O primeiro usuario autenticado vira Owner/Admin por padrao. Os
-              proximos entram como Funcionario, com permissoes restritas.
+              proximos entram como Vendedor, com permissoes restritas.
             </p>
           </div>
         </div>
@@ -38,6 +44,11 @@ export default function SignInPage() {
             estoque e contas a receber ficam reunidos em um fluxo só, com
             permissões por perfil.
           </p>
+          {error === "AccountDisabled" && (
+            <div className="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-800">
+              Sua conta foi desativada. Entre em contato com o administrador.
+            </div>
+          )}
           <div className="mt-8">
             <GoogleSignInButton />
           </div>

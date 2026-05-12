@@ -41,17 +41,47 @@ export async function createProduct(data: {
   categoryId: string;
   costPrice: number;
   salePrice: number;
+  minPrice: number;
   stockQuantity: number;
   lowStockThreshold: number;
   status: ProductStatus;
   code?: string;
   description?: string;
 }) {
-  return db.product.create({
-    data: {
-      ...data,
-      costPrice: new Prisma.Decimal(data.costPrice),
-      salePrice: new Prisma.Decimal(data.salePrice),
-    },
+  return db.$transaction(async (tx) => {
+    const product = await tx.product.create({
+      data: {
+        name: data.name,
+        categoryId: data.categoryId,
+        costPrice: new Prisma.Decimal(data.costPrice),
+        salePrice: new Prisma.Decimal(data.salePrice),
+        minPrice: new Prisma.Decimal(data.minPrice),
+        stockQuantity: data.stockQuantity,
+        lowStockThreshold: data.lowStockThreshold,
+        status: data.status,
+        code: data.code,
+        description: data.description,
+      },
+    });
+
+    const branches = await tx.branch.findMany({
+      where: { isActive: true },
+      select: { id: true, isWarehouse: true },
+    });
+
+    if (branches.length > 0) {
+      const warehouse = branches.find((b) => b.isWarehouse) ?? branches[0];
+      await tx.branchStock.createMany({
+        data: branches.map((branch) => ({
+          branchId: branch.id,
+          productId: product.id,
+          quantity: branch.id === warehouse.id ? data.stockQuantity : 0,
+          lowStockThreshold: data.lowStockThreshold,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    return product;
   });
 }

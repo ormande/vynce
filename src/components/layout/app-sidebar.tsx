@@ -1,7 +1,9 @@
 import Link from "next/link";
 import {
+  ArrowLeftRight,
   BarChart3,
   Boxes,
+  Building2,
   CreditCard,
   LayoutDashboard,
   Package,
@@ -10,23 +12,41 @@ import {
   Users,
 } from "lucide-react";
 
+import { SidebarSignOut } from "@/components/layout/sidebar-sign-out";
 import { SHOW_CUSTOMERS_MODULE_UI } from "@/lib/platform-config";
 import { cn } from "@/lib/utils";
 
-const items = [
+const ownerNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   ...(SHOW_CUSTOMERS_MODULE_UI
     ? [{ href: "/customers" as const, label: "Clientes", icon: Users }]
     : []),
   { href: "/products", label: "Produtos", icon: Package },
+  { href: "/branches", label: "Unidades", icon: Building2 },
+  { href: "/sellers", label: "Funcionários", icon: Users },
   { href: "/inventory", label: "Estoque", icon: Boxes },
+  { href: "/transfers", label: "Transferencias", icon: ArrowLeftRight },
   { href: "/sales", label: "Vendas", icon: Receipt },
   { href: "/receivables", label: "Recebiveis", icon: CreditCard },
   { href: "/reports", label: "Relatorios", icon: BarChart3 },
   { href: "/settings", label: "Configuracoes", icon: Settings },
 ];
 
-export function AppSidebar({ pathname }: { pathname: string }) {
+const sellerNavItems = [
+  { href: "/sales", label: "Vendas", icon: Receipt },
+  { href: "/inventory", label: "Estoque", icon: Boxes },
+  { href: "/transfers", label: "Transferencias", icon: ArrowLeftRight },
+];
+
+export function AppSidebar({
+  pathname,
+  roleSlug,
+}: {
+  pathname: string;
+  roleSlug?: string | null;
+}) {
+  const items = roleSlug === "seller" ? sellerNavItems : ownerNavItems;
+
   return (
     <aside className="w-full max-w-xs rounded-[32px] border border-white/55 bg-[rgba(18,30,27,0.92)] p-4 text-white shadow-[0_30px_80px_rgba(16,24,40,0.22)]">
       <div className="rounded-[28px] border border-white/10 bg-white/5 p-5">
@@ -75,6 +95,9 @@ export function AppSidebar({ pathname }: { pathname: string }) {
             </Link>
           );
         })}
+        <div className="mt-2 border-t border-white/10 pt-2">
+          <SidebarSignOut />
+        </div>
       </nav>
     </aside>
   );
