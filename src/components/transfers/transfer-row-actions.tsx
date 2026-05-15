@@ -2,8 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { cancelTransferAction, confirmTransferAction } from "@/modules/transfers/actions";
 
 export function TransferRowActions({
@@ -20,38 +22,47 @@ export function TransferRowActions({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    type: "CONFIRM" | "CANCEL" | null;
+  }>({
+    isOpen: false,
+    type: null,
+  });
 
   if (status !== "PENDING") {
     return null;
   }
 
   async function handleConfirm() {
-    if (!window.confirm("Confirmar recebimento desta transferência? O estoque será atualizado.")) {
-      return;
-    }
     setError(null);
     setPending(true);
     const res = await confirmTransferAction({ transferId });
     setPending(false);
     if (!res.ok) {
       setError(res.message);
+      toast.error("Erro ao confirmar recebimento", { description: res.message });
+      setConfirmModal({ isOpen: false, type: null });
       return;
     }
+    toast.success("Transferência confirmada com sucesso!");
+    setConfirmModal({ isOpen: false, type: null });
     router.refresh();
   }
 
   async function handleCancel() {
-    if (!window.confirm("Cancelar esta transferência pendente?")) {
-      return;
-    }
     setError(null);
     setPending(true);
     const res = await cancelTransferAction({ transferId });
     setPending(false);
     if (!res.ok) {
       setError(res.message);
+      toast.error("Erro ao cancelar transferência", { description: res.message });
+      setConfirmModal({ isOpen: false, type: null });
       return;
     }
+    toast.success("Transferência cancelada.");
+    setConfirmModal({ isOpen: false, type: null });
     router.refresh();
   }
 
@@ -63,7 +74,7 @@ export function TransferRowActions({
             type="button"
             className="rounded-full"
             disabled={pending}
-            onClick={() => void handleConfirm()}
+            onClick={() => setConfirmModal({ isOpen: true, type: "CONFIRM" })}
           >
             Confirmar recebimento
           </Button>
@@ -74,13 +85,34 @@ export function TransferRowActions({
             variant="secondary"
             className="rounded-full"
             disabled={pending}
-            onClick={() => void handleCancel()}
+            onClick={() => setConfirmModal({ isOpen: true, type: "CANCEL" })}
           >
             Cancelar
           </Button>
         ) : null}
       </div>
       {error ? <p className="text-xs text-rose-700">{error}</p> : null}
+
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen && confirmModal.type === "CONFIRM"}
+        onClose={() => setConfirmModal({ isOpen: false, type: null })}
+        onConfirm={() => void handleConfirm()}
+        title="Confirmar Recebimento"
+        description="Deseja confirmar o recebimento desta transferência? O estoque das unidades envolvidas será atualizado automaticamente."
+        confirmLabel="Confirmar Recebimento"
+        loading={pending}
+      />
+
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen && confirmModal.type === "CANCEL"}
+        onClose={() => setConfirmModal({ isOpen: false, type: null })}
+        onConfirm={() => void handleCancel()}
+        title="Cancelar Transferência"
+        description="Tem certeza que deseja cancelar esta transferência pendente? Esta ação não pode ser desfeita."
+        confirmLabel="Sim, cancelar"
+        variant="danger"
+        loading={pending}
+      />
     </div>
   );
 }

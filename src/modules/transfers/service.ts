@@ -149,10 +149,57 @@ export async function listAllTransfersForAdmin(status?: "PENDING" | "CONFIRMED" 
   return findAllTransfers(status);
 }
 
+export async function listAllTransfersForBranches(branchIds: string[]) {
+  if (branchIds.length === 0) return [];
+  return db.stockTransfer.findMany({
+    where: {
+      OR: [
+        { fromBranchId: { in: branchIds } },
+        { toBranchId: { in: branchIds } }
+      ]
+    },
+    include: {
+      fromBranch: true,
+      toBranch: true,
+      product: true,
+      requestedBy: { select: { id: true, name: true, email: true } },
+      confirmedBy: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { requestedAt: "desc" },
+  });
+}
+
 export async function getBranchStocksForTransferPicker(branchId: string) {
   return db.branchStock.findMany({
     where: { branchId, quantity: { gt: 0 } },
     include: { product: true },
     orderBy: { product: { name: "asc" } },
+  });
+}
+
+export async function getUnseenPendingTransfersCount(userId: string, branchIds: string[]) {
+  if (branchIds.length === 0) return 0;
+
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { lastTransfersViewedAt: true },
+  });
+
+  const where: any = {
+    status: "PENDING",
+    toBranchId: { in: branchIds },
+  };
+
+  if (user?.lastTransfersViewedAt) {
+    where.requestedAt = { gt: user.lastTransfersViewedAt };
+  }
+
+  return db.stockTransfer.count({ where });
+}
+
+export async function markTransfersAsViewed(userId: string) {
+  return db.user.update({
+    where: { id: userId },
+    data: { lastTransfersViewedAt: new Date() },
   });
 }

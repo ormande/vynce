@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; q?: string }>;
 }) {
   const session = await auth();
   const canWrite = hasPermission(
@@ -25,17 +25,26 @@ export default async function ProductsPage({
     permissionCatalog.productsWrite,
   );
 
-  const { page: pageStr } = await searchParams;
+  const { page: pageStr, q } = await searchParams;
   const page = parseInt(pageStr || "1", 10);
+  const search = q?.trim() || undefined;
 
-  const [{ items: products, total, totalPages }, categories] = await Promise.all([
+  const [{ items: rawProducts, total, totalPages }, categories] = await Promise.all([
     getProducts({
       page,
       pageSize: 20,
       status: "ALL",
+      search,
     }),
     getActiveCategories(),
   ]);
+
+  const products = rawProducts.map((p) => ({
+    ...p,
+    salePrice: p.salePrice.toString(),
+    costPrice: p.costPrice.toString(),
+    minPrice: p.minPrice.toString(),
+  }));
 
   return (
     <AppShell

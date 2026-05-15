@@ -10,6 +10,7 @@ import {
   confirmTransfer,
   getBranchStocksForTransferPicker,
   requestTransfer,
+  markTransfersAsViewed,
 } from "@/modules/transfers/service";
 
 async function requireTransfersSession() {
@@ -101,5 +102,16 @@ export async function listStocksForTransferFromBranchAction(branchId: string) {
       message: toErrorMessage(error),
       stocks: [] as { productId: string; name: string; quantity: number }[],
     };
+  }
+}
+
+export async function markTransfersAsViewedAction() {
+  try {
+    const session = await auth();
+    if (!session?.user) return { ok: false };
+    await markTransfersAsViewed(session.user.id);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false };
   }
 }

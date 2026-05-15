@@ -1,18 +1,19 @@
-import { Bell, Search } from "lucide-react";
-
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { GlobalSearch } from "@/components/layout/global-search";
+import { NotificationCenter } from "@/components/layout/notification-center";
 
 export function AppHeader({
   title,
   subtitle,
   userName,
   roleLabel,
+  notificationCount = 0,
 }: {
   title: string;
   subtitle: string;
   userName?: string | null;
   roleLabel?: string;
+  notificationCount?: number;
 }) {
   return (
     <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -29,20 +30,15 @@ export function AppHeader({
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative min-w-[240px]">
-          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
-          <Input placeholder="Buscar cliente, produto ou venda" className="pl-11" />
-        </div>
+        <GlobalSearch />
         <div className="flex items-center gap-3">
-          <button className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-white/80 text-[var(--foreground)]">
-            <Bell className="h-4 w-4" />
-          </button>
-          <div className="rounded-2xl border border-[var(--border-strong)] bg-white/80 px-4 py-2">
-            <p className="text-sm font-medium text-[var(--foreground)]">
+          <NotificationCenter initialCount={notificationCount} />
+          <div className="flex min-h-[5.25rem] min-w-[10.5rem] shrink-0 flex-col items-center justify-center gap-2 rounded-2xl border border-[var(--border-strong)] bg-white/80 px-5 py-4">
+            <p className="max-w-[14rem] shrink-0 truncate text-center text-sm font-medium leading-normal text-[var(--foreground)]">
               {userName || "Equipe Vynce"}
             </p>
-            <div className="mt-1">
-              <Badge>{roleLabel || "Acesso operacional"}</Badge>
+            <div className="flex shrink-0 justify-center">
+              <Badge className="whitespace-nowrap">{roleLabel || "Acesso operacional"}</Badge>
             </div>
           </div>
         </div>

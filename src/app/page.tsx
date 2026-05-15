@@ -35,7 +35,7 @@ export default function Home() {
             Vendas, estoque e recebíveis em um fluxo limpo, elegante e pronto para crescer.
           </h2>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-emerald-50/78">
-            O Vynce foi estruturado para operação diária eficiente, com arquitetura fullstack organizada, autenticação com Google, PostgreSQL, Prisma e módulos preparados para evolução real.
+            O Vynce foi estruturado para operação diária eficiente, com arquitetura de ponta a ponta organizada, autenticação com Google, PostgreSQL, Prisma e módulos preparados para evolução real.
           </p>
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
             <Link

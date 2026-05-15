@@ -1,13 +1,34 @@
 "use client";
 
 import { PaymentMethod } from "@prisma/client";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { DatePicker } from "@/components/ui/date-picker";
+import { DropdownSelect } from "@/components/ui/dropdown-select";
+import { formatCurrency } from "@/lib/utils";
+
+const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string }[] = [
+  { value: PaymentMethod.CASH, label: "Dinheiro" },
+  { value: PaymentMethod.PIX, label: "Pix" },
+  { value: PaymentMethod.DEBIT_CARD, label: "Cartão de débito" },
+  { value: PaymentMethod.CREDIT_CARD, label: "Cartão de crédito" },
+];
+
+function parseCurrencyValue(value: string) {
+  const normalized = value.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+  return Number(normalized);
+}
+
+function toCurrencyInputValue(amount: number | string) {
+  const numeric = Number(amount);
+  if (!Number.isFinite(numeric) || numeric <= 0) return "";
+  return formatCurrency(numeric);
+}
 
 export function PaymentForm({
   receivables,
@@ -22,16 +43,42 @@ export function PaymentForm({
 }) {
   const router = useRouter();
   const [receivableId, setReceivableId] = useState(receivables[0]?.id ?? "");
-  const [amount, setAmount] = useState<number>(
-    Number(receivables[0]?.balanceDue ?? 0),
-  );
+  const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<PaymentMethod>(PaymentMethod.PIX);
   const [receivedAt, setReceivedAt] = useState(new Date().toISOString().slice(0, 10));
   const [error, setError] = useState<string | null>(null);
 
+  const receivableOptions = useMemo(
+    () =>
+      receivables.map((receivable) => ({
+        value: receivable.id,
+        label: `${receivable.customer.name} (${formatCurrency(Number(receivable.balanceDue))})`,
+      })),
+    [receivables],
+  );
+
+  const paymentOptions = useMemo(
+    () => PAYMENT_METHOD_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
+    [],
+  );
+
+  useEffect(() => {
+    const receivable = receivables.find((item) => item.id === receivableId);
+    if (receivable) {
+      setAmount(toCurrencyInputValue(receivable.balanceDue));
+    }
+  }, [receivableId, receivables]);
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+
+    const parsedAmount = parseCurrencyValue(amount);
+    if (!parsedAmount || parsedAmount <= 0) {
+      setError("Informe um valor válido.");
+      return;
+    }
+
     const receivable = receivables.find((item) => item.id === receivableId);
 
     const response = await fetch("/api/payments", {
@@ -41,7 +88,7 @@ export function PaymentForm({
         receivableId,
         customerId: receivable?.customerId,
         saleId: receivable?.saleId ?? undefined,
-        amount,
+        amount: parsedAmount,
         method,
         receivedAt,
       }),
@@ -50,9 +97,11 @@ export function PaymentForm({
     if (!response.ok) {
       const data = (await response.json()) as { message?: string };
       setError(data.message || "Não foi possível registrar o pagamento.");
+      toast.error("Erro ao registrar pagamento", { description: data.message });
       return;
     }
 
+    toast.success("Pagamento registrado com sucesso!");
     router.refresh();
   }
 
@@ -65,36 +114,48 @@ export function PaymentForm({
         </p>
       </div>
       <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
-        <Select value={receivableId} onChange={(e) => setReceivableId(e.target.value)}>
-          {receivables.map((receivable) => (
-            <option key={receivable.id} value={receivable.id}>
-              {receivable.customer.name} ({Number(receivable.balanceDue).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })})
-            </option>
-          ))}
-        </Select>
-        <Select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
-          <option value={PaymentMethod.CASH}>Dinheiro</option>
-          <option value={PaymentMethod.PIX}>Pix</option>
-          <option value={PaymentMethod.DEBIT_CARD}>Cartão de débito</option>
-          <option value={PaymentMethod.CREDIT_CARD}>Cartão de crédito</option>
-        </Select>
-        <Input
-          type="number"
-          step="0.01"
-          value={amount}
-          onChange={(e) => setAmount(Number(e.target.value))}
-          placeholder="Valor recebido"
-        />
-        <Input
-          type="date"
-          value={receivedAt}
-          onChange={(e) => setReceivedAt(e.target.value)}
-        />
+        <div>
+          <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">Recebível</label>
+          <DropdownSelect
+            value={receivableId}
+            onChange={setReceivableId}
+            options={receivableOptions}
+            placeholder="Selecione o recebível"
+            disabled={receivableOptions.length === 0}
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">Forma de pagamento</label>
+          <DropdownSelect
+            value={method}
+            onChange={(value) => setMethod(value as PaymentMethod)}
+            options={paymentOptions}
+            placeholder="Selecione a forma de pagamento"
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">Valor recebido</label>
+          <CurrencyInput
+            value={amount}
+            onChange={setAmount}
+            placeholder="R$ 0,00"
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">Data do recebimento</label>
+          <DatePicker
+            value={receivedAt}
+            onChange={setReceivedAt}
+            placeholder="Data do recebimento"
+          />
+        </div>
         {error ? (
           <p className="text-sm text-rose-600 md:col-span-2">{error}</p>
         ) : null}
         <div className="md:col-span-2">
-          <Button type="submit">Registrar pagamento</Button>
+          <Button type="submit" disabled={receivableOptions.length === 0}>
+            Registrar pagamento
+          </Button>
         </div>
       </form>
     </Card>

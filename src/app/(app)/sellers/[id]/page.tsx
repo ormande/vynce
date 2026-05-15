@@ -32,7 +32,6 @@ export default async function SellerDetailPage({
       title={seller.name ?? "Funcionário"}
       subtitle="Gerencie o vínculo com unidades, status da conta e visualize o histórico do funcionário."
       pathname="/sellers"
-      backHref="/sellers"
     >
       <SellerDetailsContent seller={seller} branches={branches} />
     </AppShell>

@@ -39,12 +39,12 @@ async function main() {
   const ownerRole = await prisma.role.upsert({
     where: { slug: "owner" },
     update: {
-      name: "Owner/Admin",
+      name: "Proprietário / Admin",
       description: "Acesso completo ao sistema",
     },
     create: {
       slug: "owner",
-      name: "Owner/Admin",
+      name: "Proprietário / Admin",
       description: "Acesso completo ao sistema",
     },
   });

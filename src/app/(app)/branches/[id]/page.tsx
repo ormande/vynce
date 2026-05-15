@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Building2 } from "lucide-react";
+import { Building2, Package } from "lucide-react";
 
 import { BranchActiveToggle } from "@/components/branches/branch-active-toggle";
 import { BranchEmployeesPanel } from "@/components/branches/branch-employees-panel";
@@ -37,7 +37,7 @@ export default async function BranchDetailPage({
   return (
     <AppShell
       title={branch.name}
-      subtitle={branch.address ?? "Unidade cadastrada no sistema multi-filial."}
+      subtitle={branch.address ?? "Unidade cadastrada no sistema multifilial."}
       pathname={`/branches/${branch.id}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -99,16 +99,29 @@ export default async function BranchDetailPage({
             </tr>
           </thead>
           <tbody>
-            {stocksPreview.map((row) => (
-              <tr key={row.id} className="bg-[var(--panel-strong)]">
-                <td className="px-4 py-3 font-medium text-[var(--foreground)]">{row.product.name}</td>
-                <td className="px-4 py-3 text-sm text-[var(--muted-foreground)]">
-                  {row.product.category.name}
+            {stocksPreview.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="py-12 text-center text-sm text-[var(--muted-foreground)]">
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--panel-strong)] mb-3">
+                      <Package className="h-6 w-6 opacity-40" />
+                    </div>
+                    <p>Nenhum produto com estoque nesta unidade.</p>
+                  </div>
                 </td>
-                <td className="px-4 py-3 text-sm">{row.quantity}</td>
-                <td className="px-4 py-3 text-sm">{row.lowStockThreshold}</td>
               </tr>
-            ))}
+            ) : (
+              stocksPreview.map((row) => (
+                <tr key={row.id} className="bg-[var(--panel-strong)]">
+                  <td className="px-4 py-3 font-medium text-[var(--foreground)]">{row.product.name}</td>
+                  <td className="px-4 py-3 text-sm text-[var(--muted-foreground)]">
+                    {row.product.category.name}
+                  </td>
+                  <td className="px-4 py-3 text-sm">{row.quantity}</td>
+                  <td className="px-4 py-3 text-sm">{row.lowStockThreshold}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </Table>
       </Card>

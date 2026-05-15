@@ -13,7 +13,10 @@ import {
 } from "lucide-react";
 
 import { SidebarSignOut } from "@/components/layout/sidebar-sign-out";
-import { SHOW_CUSTOMERS_MODULE_UI } from "@/lib/platform-config";
+import {
+  SHOW_CUSTOMERS_MODULE_UI,
+  SHOW_RECEIVABLES_MODULE_UI,
+} from "@/lib/platform-config";
 import { cn } from "@/lib/utils";
 
 const ownerNavItems = [
@@ -25,25 +28,29 @@ const ownerNavItems = [
   { href: "/branches", label: "Unidades", icon: Building2 },
   { href: "/sellers", label: "Funcionários", icon: Users },
   { href: "/inventory", label: "Estoque", icon: Boxes },
-  { href: "/transfers", label: "Transferencias", icon: ArrowLeftRight },
+  { href: "/transfers", label: "Transferências", icon: ArrowLeftRight },
   { href: "/sales", label: "Vendas", icon: Receipt },
-  { href: "/receivables", label: "Recebiveis", icon: CreditCard },
-  { href: "/reports", label: "Relatorios", icon: BarChart3 },
-  { href: "/settings", label: "Configuracoes", icon: Settings },
+  ...(SHOW_RECEIVABLES_MODULE_UI
+    ? [{ href: "/receivables" as const, label: "Recebíveis", icon: CreditCard }]
+    : []),
+  { href: "/reports", label: "Relatórios", icon: BarChart3 },
+  { href: "/settings", label: "Configurações", icon: Settings },
 ];
 
 const sellerNavItems = [
   { href: "/sales", label: "Vendas", icon: Receipt },
   { href: "/inventory", label: "Estoque", icon: Boxes },
-  { href: "/transfers", label: "Transferencias", icon: ArrowLeftRight },
+  { href: "/transfers", label: "Transferências", icon: ArrowLeftRight },
 ];
 
 export function AppSidebar({
   pathname,
   roleSlug,
+  transferBadgeCount = 0,
 }: {
   pathname: string;
   roleSlug?: string | null;
+  transferBadgeCount?: number;
 }) {
   const items = roleSlug === "seller" ? sellerNavItems : ownerNavItems;
 
@@ -55,7 +62,7 @@ export function AppSidebar({
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">Comercial</h1>
         <p className="mt-2 text-sm text-emerald-50/70">
-          Gestao elegante para operacao, estoque e recebiveis.
+          Gestão elegante para operação, estoque e recebíveis.
         </p>
       </div>
 
@@ -70,7 +77,7 @@ export function AppSidebar({
               key={item.href}
               href={item.href}
               className={cn(
-                "group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition",
+                "group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition cursor-pointer",
                 active ? "bg-white shadow-lg" : "hover:bg-white/8",
               )}
             >
@@ -92,6 +99,11 @@ export function AppSidebar({
               >
                 {item.label}
               </span>
+              {item.href === "/transfers" && transferBadgeCount > 0 && (
+                <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white shadow-sm animate-pulse">
+                  {transferBadgeCount}
+                </span>
+              )}
             </Link>
           );
         })}

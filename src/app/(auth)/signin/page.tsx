@@ -20,17 +20,17 @@ export default async function SignInPage({
           </p>
           <h1 className="mt-5 text-5xl font-semibold">Entre no Vynce</h1>
           <p className="mt-5 max-w-xl text-lg leading-8 text-emerald-50/80">
-            Autenticacao com Google integrada ao banco de dados, com perfil
-            persistido, funcao do usuario e base pronta para futuras politicas
-            de permissao.
+            Autenticação com Google integrada ao banco de dados, com perfil
+            persistido, função do usuário e base pronta para futuras políticas
+            de permissão.
           </p>
           <div className="mt-8 flex items-center gap-3 rounded-3xl border border-white/10 bg-white/6 p-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
               <ShieldCheck className="h-5 w-5" />
             </div>
             <p className="text-sm text-emerald-50/80">
-              O primeiro usuario autenticado vira Owner/Admin por padrao. Os
-              proximos entram como Vendedor, com permissoes restritas.
+              O primeiro usuário autenticado passa a ser proprietário/administrador
+              por padrão. Os próximos entram como vendedor, com permissões restritas.
             </p>
           </div>
         </div>
@@ -56,7 +56,7 @@ export default async function SignInPage({
             href="/"
             className="mt-5 inline-flex w-fit rounded-full border border-[var(--border-strong)] bg-[rgba(255,248,242,0.96)] px-5 py-3 text-sm font-semibold text-[var(--accent-strong)] shadow-[0_14px_32px_rgba(15,23,42,0.08)] transition hover:bg-white"
           >
-            Voltar para a pagina inicial
+            Voltar para a página inicial
           </Link>
         </Card>
       </div>

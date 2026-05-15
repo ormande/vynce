@@ -89,6 +89,7 @@ model User {
   cashSessions    CashRegisterSession[]
   transfersRequested StockTransfer[] @relation("StockTransferRequestedBy")
   transfersConfirmed StockTransfer[] @relation("StockTransferConfirmedBy")
+  lastTransfersViewedAt DateTime?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }

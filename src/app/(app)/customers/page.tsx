@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { Users } from "lucide-react";
 
 import { CustomerForm } from "@/components/forms/customer-form";
 import { AppShell } from "@/components/layout/app-shell";
@@ -38,30 +39,43 @@ export default async function CustomersPage({
           </div>
           <Table>
             <thead>
-              <tr className="text-left text-sm text-[var(--muted-foreground)]">
-                <th className="px-4 py-2">Cliente</th>
+              <tr className="text-center text-sm text-[var(--muted-foreground)]">
+                <th className="px-4 py-2 text-left">Cliente</th>
                 <th className="px-4 py-2">Contato</th>
                 <th className="px-4 py-2">Compras</th>
                 <th className="px-4 py-2">Saldo devedor</th>
               </tr>
             </thead>
             <tbody>
-              {customers.map((customer) => (
-                <tr key={customer.id} className="rounded-3xl bg-[var(--panel-strong)]">
-                  <td className="rounded-l-3xl px-4 py-4 font-medium text-[var(--foreground)]">
-                    {customer.name}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-[var(--muted-foreground)]">
-                    {customer.phone}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-[var(--muted-foreground)]">
-                    {customer.purchaseHistoryCount}
-                  </td>
-                  <td className="rounded-r-3xl px-4 py-4 font-medium text-[var(--foreground)]">
-                    {formatCurrency(customer.outstandingBalance)}
+              {customers.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-12 text-center text-sm text-[var(--muted-foreground)]">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--panel-strong)] mb-3">
+                        <Users className="h-6 w-6 opacity-40" />
+                      </div>
+                      <p>Nenhum cliente cadastrado.</p>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                customers.map((customer) => (
+                  <tr key={customer.id} className="rounded-3xl bg-[var(--panel-strong)] transition-colors hover:bg-white shadow-sm hover:shadow-md text-center">
+                    <td className="rounded-l-3xl px-4 py-4 font-medium text-[var(--foreground)] text-left">
+                      {customer.name}
+                    </td>
+                    <td className="px-4 py-4 text-sm text-[var(--muted-foreground)]">
+                      {customer.phone}
+                    </td>
+                    <td className="px-4 py-4 text-sm text-[var(--muted-foreground)]">
+                      {customer.purchaseHistoryCount}
+                    </td>
+                    <td className="rounded-r-3xl px-4 py-4 font-medium text-[var(--foreground)]">
+                      {formatCurrency(customer.outstandingBalance)}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </Table>
         </Card>

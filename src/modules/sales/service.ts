@@ -1,9 +1,4 @@
-import {
-  PaymentMethod,
-  Prisma,
-  ReceivableStatus,
-  SalePaymentStatus,
-} from "@prisma/client";
+import { Prisma, SalePaymentStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
@@ -76,16 +71,51 @@ export async function registerSale(
       throw new AppError("Produto não encontrado.", 404);
     }
 
+    const catalogUnitPrice = Number(product.salePrice);
+    const unitPrice = item.unitPrice;
+    const catalogLineTotal = catalogUnitPrice * item.quantity;
+
+    if (unitPrice < catalogUnitPrice && !data.applyDiscount) {
+      throw new AppError(
+        `O valor de ${product.name} está abaixo do preço do sistema. Marque a opção de desconto para continuar.`,
+        400,
+      );
+    }
+
+    if (unitPrice < Number(product.minPrice)) {
+      throw new AppError(
+        `O valor de ${product.name} não pode ficar abaixo do preço mínimo permitido.`,
+        400,
+      );
+    }
+
     return {
       product,
       quantity: item.quantity,
-      total: Number(product.salePrice) * item.quantity,
+      unitPrice,
+      catalogLineTotal,
+      total: unitPrice * item.quantity,
     };
   });
 
+  const catalogSubtotal = items.reduce((sum, item) => sum + item.catalogLineTotal, 0);
   const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-  const total = subtotal - data.discount;
-  const isCredit = data.paymentMethod === PaymentMethod.CREDIT;
+  const computedDiscount = Math.max(0, catalogSubtotal - subtotal);
+
+  if (data.applyDiscount && computedDiscount <= 0) {
+    throw new AppError("Informe um valor com desconto válido.", 400);
+  }
+
+  if (!data.applyDiscount && computedDiscount > 0) {
+    throw new AppError(
+      "Para vender abaixo do preço do sistema, marque a opção de desconto.",
+      400,
+    );
+  }
+
+  const discount = data.applyDiscount ? computedDiscount : 0;
+  const total = subtotal;
+  const soldAt = new Date();
 
   return db.$transaction(async (tx) => {
     for (const [productId, needQty] of neededByProduct) {
@@ -113,20 +143,17 @@ export async function registerSale(
         customerId: data.customerId,
         sellerId,
         paymentMethod: data.paymentMethod,
-        paymentStatus: isCredit
-          ? SalePaymentStatus.PENDING
-          : SalePaymentStatus.PAID,
+        paymentStatus: SalePaymentStatus.PAID,
         subtotal: new Prisma.Decimal(subtotal),
-        discount: new Prisma.Decimal(data.discount),
+        discount: new Prisma.Decimal(discount),
         total: new Prisma.Decimal(total),
-        soldAt: new Date(data.soldAt),
-        dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
+        soldAt,
         notes: data.notes || undefined,
         items: {
           create: items.map((item) => ({
             productId: item.product.id,
             quantity: item.quantity,
-            unitPrice: item.product.salePrice,
+            unitPrice: new Prisma.Decimal(item.unitPrice),
             costSnapshot: item.product.costPrice,
             total: new Prisma.Decimal(item.total),
           })),
@@ -185,31 +212,16 @@ export async function registerSale(
       });
     }
 
-    if (isCredit) {
-      await tx.receivable.create({
-        data: {
-          customerId: data.customerId,
-          saleId: sale.id,
-          originalAmount: new Prisma.Decimal(total),
-          paidAmount: new Prisma.Decimal(0),
-          balanceDue: new Prisma.Decimal(total),
-          dueDate: data.dueDate ? new Date(data.dueDate) : new Date(data.soldAt),
-          status: ReceivableStatus.OPEN,
-          notes: data.notes || undefined,
-        },
-      });
-    } else {
-      await tx.payment.create({
-        data: {
-          customerId: data.customerId,
-          saleId: sale.id,
-          createdById: sellerId,
-          amount: new Prisma.Decimal(total),
-          method: data.paymentMethod,
-          receivedAt: new Date(data.soldAt),
-        },
-      });
-    }
+    await tx.payment.create({
+      data: {
+        customerId: data.customerId,
+        saleId: sale.id,
+        createdById: sellerId,
+        amount: new Prisma.Decimal(total),
+        method: data.paymentMethod,
+        receivedAt: soldAt,
+      },
+    });
 
     return sale;
   });

@@ -1,14 +1,21 @@
+import { redirect } from "next/navigation";
+import { CreditCard } from "lucide-react";
 import { PaymentForm } from "@/components/forms/payment-form";
 import { AppShell } from "@/components/layout/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Table } from "@/components/ui/table";
+import { SHOW_RECEIVABLES_MODULE_UI } from "@/lib/platform-config";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { getReceivables } from "@/modules/payments/service";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReceivablesPage() {
+  if (!SHOW_RECEIVABLES_MODULE_UI) {
+    redirect("/dashboard");
+  }
+
   const receivables = await getReceivables();
 
   return (
@@ -41,38 +48,51 @@ export default async function ReceivablesPage() {
               </tr>
             </thead>
             <tbody>
-              {receivables.map((receivable) => (
-                <tr key={receivable.id} className="rounded-3xl bg-[var(--panel-strong)]">
-                  <td className="rounded-l-3xl px-4 py-4 font-medium text-[var(--foreground)]">
-                    {receivable.customer.name}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-[var(--muted-foreground)]">
-                    {formatDate(receivable.dueDate)}
-                  </td>
-                  <td className="px-4 py-4">
-                    <Badge
-                      tone={
-                        receivable.isOverdue
-                          ? "danger"
-                          : receivable.dueSoon
-                            ? "warning"
-                            : receivable.status === "PAID"
-                              ? "success"
-                              : "neutral"
-                      }
-                    >
-                      {receivable.isOverdue
-                        ? "Vencido"
-                        : receivable.dueSoon
-                          ? "Próximo"
-                          : receivable.status}
-                    </Badge>
-                  </td>
-                  <td className="rounded-r-3xl px-4 py-4 font-medium text-[var(--foreground)]">
-                    {formatCurrency(receivable.balanceDue.toString())}
+              {receivables.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-12 text-center text-sm text-[var(--muted-foreground)]">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--panel-strong)] mb-3">
+                        <CreditCard className="h-6 w-6 opacity-40" />
+                      </div>
+                      <p>Nenhum recebível encontrado.</p>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                receivables.map((receivable) => (
+                  <tr key={receivable.id} className="rounded-3xl bg-[var(--panel-strong)]">
+                    <td className="rounded-l-3xl px-4 py-4 font-medium text-[var(--foreground)]">
+                      {receivable.customer.name}
+                    </td>
+                    <td className="px-4 py-4 text-sm text-[var(--muted-foreground)]">
+                      {formatDate(receivable.dueDate)}
+                    </td>
+                    <td className="px-4 py-4">
+                      <Badge
+                        tone={
+                          receivable.isOverdue
+                            ? "danger"
+                            : receivable.dueSoon
+                              ? "warning"
+                              : receivable.status === "PAID"
+                                ? "success"
+                                : "neutral"
+                        }
+                      >
+                        {receivable.isOverdue
+                          ? "Vencido"
+                          : receivable.dueSoon
+                            ? "Próximo"
+                            : receivable.status}
+                      </Badge>
+                    </td>
+                    <td className="rounded-r-3xl px-4 py-4 font-medium text-[var(--foreground)]">
+                      {formatCurrency(receivable.balanceDue.toString())}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </Table>
         </Card>

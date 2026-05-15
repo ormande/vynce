@@ -1,6 +1,6 @@
 # Vynce
 
-Sistema web fullstack para gestao comercial de pequenos e medios negocios, com foco em clientes, produtos, estoque, vendas a vista e fiado, recebimentos, dashboard e relatorios.
+Sistema web de ponta a ponta para gestão comercial de pequenos e médios negócios, com foco em clientes, produtos, estoque, vendas à vista e fiado, recebimentos, dashboard e relatórios.
 
 ## Stack
 
@@ -15,15 +15,15 @@ Sistema web fullstack para gestao comercial de pequenos e medios negocios, com f
 
 ## Principais funcionalidades da base
 
-- Login com Google e persistencia do usuario no banco
-- Papeis `owner` e `seller` (Vendedor), com estrutura pronta para permissoes
-- Dashboard com metricas de vendas, pendencias, clientes e estoque
-- Cadastro de clientes com saldo devedor e historico derivados
-- Cadastro de produtos com categorias, precos, status e estoque
-- Fluxo inicial de venda com atualizacao automatica de estoque
+- Login com Google e persistência do usuário no banco
+- Papéis `owner` e `seller` (Vendedor), com estrutura pronta para permissões
+- Dashboard com métricas de vendas, pendências, clientes e estoque
+- Cadastro de clientes com saldo devedor e histórico derivados
+- Cadastro de produtos com categorias, preços, status e estoque
+- Fluxo inicial de venda com atualização automática de estoque
 - Contas a receber com vencimento, baixa parcial/total e status visual
-- Relatorios iniciais para visao gerencial
-- API integrada ao projeto com separacao por modulos
+- Relatórios iniciais para visão gerencial
+- API integrada ao projeto com separação por módulos
 
 ## Arquitetura
 
@@ -58,12 +58,12 @@ src/
   tests/
 ```
 
-Padrao adotado:
+Padrão adotado:
 
-- `app/`: rotas, paginas e route handlers
-- `components/`: UI reutilizavel, layout, formularios e graficos
-- `modules/`: regras de negocio, schemas Zod, repositorios e servicos por dominio
-- `lib/`: autenticacao, banco, permissoes, utilitarios e tratamento de erro
+- `app/`: rotas, páginas e route handlers
+- `components/`: UI reutilizável, layout, formulários e gráficos
+- `modules/`: regras de negócio, schemas Zod, repositórios e serviços por domínio
+- `lib/`: autenticação, banco, permissões, utilitários e tratamento de erro
 - `prisma/`: modelagem, seed e migration inicial
 
 ## Modelagem coberta
@@ -85,7 +85,7 @@ Entidades principais:
 - `Payment`
 - tabelas do NextAuth: `Account`, `Session`, `VerificationToken`
 
-## Variaveis de ambiente
+## Variáveis de ambiente
 
 Copie `.env.example` para `.env` e ajuste:
 
@@ -99,7 +99,7 @@ GOOGLE_CLIENT_SECRET="your-google-client-secret"
 
 ## Como rodar localmente
 
-1. Instale as dependencias:
+1. Instale as dependências:
 
 ```bash
 npm install
@@ -131,13 +131,13 @@ npm run dev
 http://localhost:3000
 ```
 
-## Scripts uteis
+## Scripts úteis
 
 - `npm run dev`: desenvolvimento
-- `npm run build`: build de producao
+- `npm run build`: build de produção
 - `npm run start`: executar build
 - `npm run lint`: lint
-- `npm run typecheck`: validacao TypeScript
+- `npm run typecheck`: validação TypeScript
 - `npm test`: testes
 - `npm run prisma:generate`: gerar client Prisma
 - `npm run prisma:migrate`: rodar migrations em desenvolvimento
@@ -147,38 +147,38 @@ http://localhost:3000
 
 O seed cria:
 
-- permissoes base
-- papeis `owner` e `seller` (Vendedor)
+- permissões base
+- papéis `owner` e `seller` (Vendedor)
 - categorias iniciais
 - produtos de exemplo
 - clientes de exemplo
-- vendas e recebiveis de exemplo
+- vendas e recebíveis de exemplo
 
 Regra inicial de acesso:
 
-- o primeiro usuario autenticado via Google vira `Owner/Admin`
-- usuarios seguintes entram como `Vendedor` (`seller`)
+- o primeiro usuário autenticado via Google passa a ser proprietário/administrador
+- usuários seguintes entram como `Vendedor` (`seller`)
 
 ## Status atual da base
 
-Entregue nesta versao:
+Entregue nesta versão:
 
-- base fullstack organizada
-- autenticacao com Google configurada
+- base de ponta a ponta organizada
+- autenticação com Google configurada
 - modelagem relacional consistente
-- paginas iniciais do produto
+- páginas iniciais do produto
 - CRUD inicial para clientes e produtos
 - fluxo inicial de vendas e pagamentos
-- dashboard e relatorios
+- dashboard e relatórios
 - migration inicial
 - seed
 - testes e lint configurados
 
-## Proximos passos recomendados
+## Próximos passos recomendados
 
-- adicionar edicao e exclusao completas nas entidades
-- refinar gestao de permissoes por tela e acao
-- incluir paginacao e filtros avancados
+- adicionar edição e exclusão completas nas entidades
+- refinar gestão de permissões por tela e ação
+- incluir paginação e filtros avançados
 - expandir auditoria de estoque
-- adicionar exportacao de relatorios
-- cobrir regras de negocio com mais testes
+- adicionar exportação de relatórios
+- cobrir regras de negócio com mais testes

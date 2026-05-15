@@ -3,8 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { UserMinus } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import {
   addUserToBranchAction,
   removeUserFromBranchAction,
@@ -74,6 +76,7 @@ export function BranchEmployeesPanel({
   const [actionError, setActionError] = useState<string | null>(null);
   const [linkingId, setLinkingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const runSearch = useCallback(
@@ -120,29 +123,45 @@ export function BranchEmployeesPanel({
     setLinkingId(null);
     if (!res.ok) {
       setActionError(res.message);
+      toast.error("Erro ao vincular vendedor", { description: res.message });
       return;
     }
+    toast.success("Vendedor vinculado com sucesso!");
     setQuery("");
     setResults([]);
     router.refresh();
   }
 
   async function handleRemove(userId: string) {
-    const ok = window.confirm("Remover este vendedor desta unidade?");
-    if (!ok) return;
     setActionError(null);
     setRemovingId(userId);
     const res = await removeUserFromBranchAction(branchId, userId);
     setRemovingId(null);
+    setIsConfirmModalOpen(false);
     if (!res.ok) {
       setActionError(res.message);
+      toast.error("Erro ao remover vendedor", { description: res.message });
       return;
     }
+    toast.success("Vendedor removido desta unidade.");
     router.refresh();
   }
 
   return (
     <div className="space-y-6">
+      <ConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => {
+          setIsConfirmModalOpen(false);
+          setRemovingId(null);
+        }}
+        onConfirm={() => removingId && void handleRemove(removingId)}
+        title="Remover Vendedor"
+        description="Deseja remover este vendedor desta unidade? Ele não poderá mais realizar vendas ou gerenciar o estoque desta filial."
+        confirmLabel="Sim, remover"
+        variant="danger"
+        loading={!!removingId}
+      />
       <div>
         <label htmlFor={`branch-emp-search-${branchId}`} className="text-sm font-medium text-[var(--foreground)]">
           Vincular vendedor
@@ -215,8 +234,11 @@ export function BranchEmployeesPanel({
                   type="button"
                   variant="ghost"
                   className="shrink-0 rounded-full text-rose-700 hover:bg-rose-50"
-                  disabled={removingId === row.userId}
-                  onClick={() => void handleRemove(row.userId)}
+                  disabled={!!removingId}
+                  onClick={() => {
+                    setRemovingId(row.userId);
+                    setIsConfirmModalOpen(true);
+                  }}
                   title="Remover vínculo"
                 >
                   <UserMinus className="h-4 w-4" />

@@ -5,9 +5,11 @@ import { useState } from "react";
 import { User, Building2, Calendar, Mail, Shield, Power, PowerOff, XCircle, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { ActionButton } from "@/components/ui/action-button";
 import { Card } from "@/components/ui/card";
 import {
@@ -50,19 +52,29 @@ export function SellerDetailsContent({
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    type: "DISABLE" | "REMOVE_BRANCH" | null;
+  }>({
+    isOpen: false,
+    type: null,
+  });
 
   const currentBranch = seller.userBranches[0]?.branch;
 
   async function handleDisable() {
-    if (!window.confirm("Tem certeza que deseja desativar este funcionário? Ele perderá o acesso ao sistema imediatamente.")) {
-      return;
-    }
     setIsPending(true);
     setError(null);
     const res = await disableSellerAction(seller.id);
     setIsPending(false);
-    if (!res.ok) setError(res.message);
-    else router.refresh();
+    setConfirmModal({ isOpen: false, type: null });
+    if (!res.ok) {
+      setError(res.message);
+      toast.error("Erro ao desativar funcionário", { description: res.message });
+    } else {
+      toast.success("Funcionário desativado com sucesso.");
+      router.refresh();
+    }
   }
 
   async function handleReactivate() {
@@ -70,8 +82,13 @@ export function SellerDetailsContent({
     setError(null);
     const res = await reactivateSellerAction(seller.id);
     setIsPending(false);
-    if (!res.ok) setError(res.message);
-    else router.refresh();
+    if (!res.ok) {
+      setError(res.message);
+      toast.error("Erro ao reativar funcionário", { description: res.message });
+    } else {
+      toast.success("Funcionário reativado com sucesso.");
+      router.refresh();
+    }
   }
 
   async function handleUpdateBranch(branchId: string) {
@@ -79,20 +96,28 @@ export function SellerDetailsContent({
     setError(null);
     const res = await updateSellerBranchAction(seller.id, branchId);
     setIsPending(false);
-    if (!res.ok) setError(res.message);
-    else router.refresh();
+    if (!res.ok) {
+      setError(res.message);
+      toast.error("Erro ao alterar unidade", { description: res.message });
+    } else {
+      toast.success("Unidade alterada com sucesso.");
+      router.refresh();
+    }
   }
 
   async function handleRemoveBranch() {
-    if (!window.confirm("Remover o vínculo deste funcionário com a unidade atual?")) {
-      return;
-    }
     setIsPending(true);
     setError(null);
     const res = await removeSellerBranchAction(seller.id);
     setIsPending(false);
-    if (!res.ok) setError(res.message);
-    else router.refresh();
+    setConfirmModal({ isOpen: false, type: null });
+    if (!res.ok) {
+      setError(res.message);
+      toast.error("Erro ao remover vínculo", { description: res.message });
+    } else {
+      toast.success("Vínculo removido com sucesso.");
+      router.refresh();
+    }
   }
 
   return (
@@ -161,9 +186,9 @@ export function SellerDetailsContent({
             <div className="mt-8 w-full pt-6 border-t border-[var(--border)]">
               {seller.status === "ACTIVE" ? (
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   className="w-full border-rose-200 text-rose-700 hover:bg-rose-50"
-                  onClick={handleDisable}
+                  onClick={() => setConfirmModal({ isOpen: true, type: "DISABLE" })}
                   disabled={isPending}
                 >
                   <PowerOff className="mr-2 h-4 w-4" />
@@ -210,9 +235,8 @@ export function SellerDetailsContent({
                 </div>
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="text-rose-700 hover:bg-rose-50"
-                  onClick={handleRemoveBranch}
+                  className="px-3 py-1.5 text-xs text-rose-700 hover:bg-rose-50"
+                  onClick={() => setConfirmModal({ isOpen: true, type: "REMOVE_BRANCH" })}
                   disabled={isPending}
                 >
                   <XCircle className="mr-2 h-4 w-4" />
@@ -253,6 +277,28 @@ export function SellerDetailsContent({
           </div>
         </Card>
       </div>
+
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen && confirmModal.type === "DISABLE"}
+        onClose={() => setConfirmModal({ isOpen: false, type: null })}
+        onConfirm={() => void handleDisable()}
+        title="Desativar Funcionário"
+        description="Tem certeza que deseja desativar este funcionário? Ele perderá o acesso ao sistema imediatamente."
+        confirmLabel="Sim, desativar"
+        variant="danger"
+        loading={isPending}
+      />
+
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen && confirmModal.type === "REMOVE_BRANCH"}
+        onClose={() => setConfirmModal({ isOpen: false, type: null })}
+        onConfirm={() => void handleRemoveBranch()}
+        title="Desvincular Unidade"
+        description="Deseja remover o vínculo deste funcionário com a unidade atual?"
+        confirmLabel="Sim, desvincular"
+        variant="danger"
+        loading={isPending}
+      />
     </div>
   );
 }

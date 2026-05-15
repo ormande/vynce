@@ -124,6 +124,7 @@ export function ProductDetailModal({
               categories={categories}
               initialValues={{
                 ...product,
+                categoryId: product.category.id,
                 costPrice: formatCurrency(product.costPrice.toString()),
                 salePrice: formatCurrency(product.salePrice.toString()),
                 minPrice: formatCurrency(product.minPrice.toString()),

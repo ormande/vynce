@@ -9,6 +9,7 @@
   --border-strong: rgba(54, 73, 65, 0.18);
   --accent: #315b4d;
   --accent-strong: #23463a;
+  --accent-foreground: #fff8f2;
   --muted-foreground: #607168;
   --ring: #315b4d;
 }
@@ -16,6 +17,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-foreground: var(--accent-foreground);
   --font-sans: var(--font-manrope);
   --font-serif: var(--font-cormorant);
 }
@@ -46,4 +50,10 @@ h3 {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+a,
+button, 
+[role="button"] {
+  cursor: pointer;
 }
