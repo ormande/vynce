@@ -1,8 +1,8 @@
+import { redirect } from "next/navigation";
 import { ArrowLeftRight } from "lucide-react";
 
 import { requirePermission } from "@/lib/auth-guards";
 import { permissionCatalog } from "@/lib/permissions";
-import { AppShell } from "@/components/layout/app-shell";
 import { SetupEmptyState } from "@/components/ui/setup-empty-state";
 import { resolveSetupBlock } from "@/lib/setup-blocks";
 import { listActiveBranches } from "@/modules/branches/service";
@@ -34,45 +34,50 @@ export default async function TransfersPage({
     getSetupSnapshot(),
     getPlatformSettings(),
   ]);
+
+  if (settings.singleUnitMode) {
+    redirect("/inventory");
+  }
+
   const setupBlock = resolveSetupBlock("transfers", snapshot, {
     singleUnitMode: settings.singleUnitMode,
   });
 
   if (setupBlock) {
-    return (
-      <AppShell
-        title="Transferências"
-        subtitle="Movimentação de estoque entre unidades do negócio."
-        pathname="/transfers"
-      >
-        <SetupEmptyState block={setupBlock} icon={ArrowLeftRight} />
-      </AppShell>
-    );
+    return <SetupEmptyState block={setupBlock} icon={ArrowLeftRight} />;
   }
-
-  const allBranches = (await listActiveBranches()).map((b) => ({
-    id: b.id,
-    name: b.name,
-    isWarehouse: b.isWarehouse,
-  }));
 
   const sellerTab = params.tab ?? "my";
   const sellerView: "my" | "incoming" | "history" =
     sellerTab === "incoming" ? "incoming" : sellerTab === "history" ? "history" : "my";
 
-  let transfers: StockTransferWithRelations[] = [];
-  if (isOwner) {
-    const st = params.status;
-    const statusFilter =
-      st === "PENDING" || st === "CONFIRMED" || st === "CANCELLED" ? st : undefined;
-    transfers = await listAllTransfersForAdmin(statusFilter);
-  } else if (sellerView === "my") {
-    transfers = await listMyRequestedTransfers(session.user.id);
-  } else if (sellerView === "incoming") {
-    transfers = await listPendingInboundForBranches(branchIds);
-  } else {
-    transfers = await listAllTransfersForBranches(branchIds);
-  }
+  const loadTransfers = (): Promise<StockTransferWithRelations[]> => {
+    if (isOwner) {
+      const st = params.status;
+      const statusFilter =
+        st === "PENDING" || st === "CONFIRMED" || st === "CANCELLED" ? st : undefined;
+      return listAllTransfersForAdmin(statusFilter);
+    }
+    if (sellerView === "my") {
+      return listMyRequestedTransfers(session.user.id);
+    }
+    if (sellerView === "incoming") {
+      return listPendingInboundForBranches(branchIds);
+    }
+    return listAllTransfersForBranches(branchIds);
+  };
+
+  const [allBranchesRaw, transfers, unseenCount] = await Promise.all([
+    listActiveBranches(),
+    loadTransfers(),
+    getUnseenPendingTransfersCount(session.user.id, branchIds),
+  ]);
+
+  const allBranches = allBranchesRaw.map((b) => ({
+    id: b.id,
+    name: b.name,
+    isWarehouse: b.isWarehouse,
+  }));
 
   const branchesFrom = isOwner
     ? allBranches
@@ -88,17 +93,7 @@ export default async function TransfersPage({
     },
   }));
 
-  const unseenCount = await getUnseenPendingTransfersCount(
-    session.user.id,
-    branchIds
-  );
-
   return (
-    <AppShell
-      title="Transferências"
-      subtitle="Solicite movimentação entre unidades e confirme o recebimento na filial de destino."
-      pathname="/transfers"
-    >
       <TransfersPageContent
         transfers={serializedTransfers as any}
         originBranches={branchesFrom}
@@ -110,6 +105,5 @@ export default async function TransfersPage({
         currentStatus={params.status ?? ""}
         unseenCount={unseenCount}
       />
-    </AppShell>
   );
 }

@@ -117,7 +117,7 @@ export function SalesPageContent({
       </div>
 
       {tab === "register" ? (
-        <div className="w-full">
+        <div className="w-full max-lg:pb-6">
           <SaleForm
             branches={branches}
             defaultBranchId={defaultBranchId}

@@ -1,4 +1,3 @@
-import { AppShell } from "@/components/layout/app-shell";
 import { CategoriesPageContent } from "@/components/categories/categories-page-content";
 import { auth } from "@/lib/auth";
 import { requirePermission } from "@/lib/auth-guards";
@@ -18,13 +17,5 @@ export default async function ProductCategoriesPage() {
 
   const categories = await getCategoriesForManagement();
 
-  return (
-    <AppShell
-      title="Categorias de produtos"
-      subtitle="Organize o catálogo com categorias personalizáveis para facilitar buscas e relatórios."
-      pathname="/products"
-    >
-      <CategoriesPageContent categories={categories} canWrite={canWrite} />
-    </AppShell>
-  );
+  return <CategoriesPageContent categories={categories} canWrite={canWrite} />;
 }

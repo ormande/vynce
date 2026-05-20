@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { CreditCard } from "lucide-react";
 
 import { ReceivablesPageContent } from "@/components/receivables/receivables-page-content";
-import { AppShell } from "@/components/layout/app-shell";
 import { SetupEmptyState } from "@/components/ui/setup-empty-state";
 import { resolveSetupBlock } from "@/lib/setup-blocks";
 import { parsePageParam } from "@/lib/pagination";
@@ -15,9 +14,16 @@ import {
 } from "@/modules/payments/service";
 import { getPlatformSettings } from "@/modules/platform-settings/service";
 import { getSetupSnapshot } from "@/modules/setup/service";
-import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
+
+const EMPTY_RECEIVABLES_PAGE = {
+  items: [],
+  page: 1,
+  totalPages: 1,
+  pageSize: 10,
+  total: 0,
+};
 
 export default async function ReceivablesPage({
   searchParams,
@@ -38,13 +44,26 @@ export default async function ReceivablesPage({
   const tab = params.tab === "records" ? "records" : "register";
   const page = parsePageParam(params.page);
 
-  const [snapshot, settings, receivablesResult, receivablesForPayment] =
-    await Promise.all([
+  let snapshot: Awaited<ReturnType<typeof getSetupSnapshot>>;
+  let settings: Awaited<ReturnType<typeof getPlatformSettings>>;
+  let receivablesResult: Awaited<ReturnType<typeof getReceivablesPaginated>> =
+    EMPTY_RECEIVABLES_PAGE;
+  let receivablesForPayment: Awaited<ReturnType<typeof getReceivablesForPayment>> =
+    [];
+
+  if (tab === "register") {
+    [snapshot, settings, receivablesForPayment] = await Promise.all([
       getSetupSnapshot(),
       getPlatformSettings(),
-      getReceivablesPaginated({ page: tab === "records" ? page : 1, pageSize: 10 }),
       getReceivablesForPayment(),
     ]);
+  } else {
+    [snapshot, settings, receivablesResult] = await Promise.all([
+      getSetupSnapshot(),
+      getPlatformSettings(),
+      getReceivablesPaginated({ page, pageSize: 10 }),
+    ]);
+  }
 
   const setupBlock = resolveSetupBlock("receivables", snapshot, {
     singleUnitMode: settings.singleUnitMode,
@@ -63,15 +82,9 @@ export default async function ReceivablesPage({
     notes: receivable.notes,
   });
 
-  return (
-    <AppShell
-      title="Contas a receber"
-      subtitle="Acompanhamento de vencimentos, pendências e registro de pagamentos recebidos."
-      pathname="/receivables"
-    >
-      {setupBlock ? (
-        <SetupEmptyState block={setupBlock} icon={CreditCard} />
-      ) : (
+  return setupBlock ? (
+    <SetupEmptyState block={setupBlock} icon={CreditCard} />
+  ) : (
         <ReceivablesPageContent
           tab={tab}
           page={receivablesResult.page}
@@ -80,7 +93,5 @@ export default async function ReceivablesPage({
           receivablesForPayment={receivablesForPayment.map(mapRow)}
           canWrite={canWrite}
         />
-      )}
-    </AppShell>
   );
 }

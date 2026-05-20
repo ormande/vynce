@@ -2,7 +2,6 @@ import { Receipt } from "lucide-react";
 
 import { SalesPageContent } from "@/components/sales/sales-page-content";
 import type { SaleRecordRow } from "@/components/sales/sale-edit-modal";
-import { AppShell } from "@/components/layout/app-shell";
 import { SetupEmptyState } from "@/components/ui/setup-empty-state";
 import { resolveSetupBlock } from "@/lib/setup-blocks";
 import { parsePageParam } from "@/lib/pagination";
@@ -15,9 +14,10 @@ import { getProducts } from "@/modules/products/service";
 import { getSalesPaginated } from "@/modules/sales/service";
 import { getPlatformSettings } from "@/modules/platform-settings/service";
 import { getSetupSnapshot } from "@/modules/setup/service";
-import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
+
+const EMPTY_SALES_PAGE = { items: [], page: 1, totalPages: 1, pageSize: 10, total: 0 };
 
 export default async function SalesPage({
   searchParams,
@@ -33,14 +33,44 @@ export default async function SalesPage({
   const tab = params.tab === "records" ? "records" : "register";
   const page = parsePageParam(params.page);
 
-  const [snapshot, settings, allBranches, customerFormData, products] =
-    await Promise.all([
+  const salesBranchFilter =
+    isSeller && branchIds.length > 0 ? branchIds : undefined;
+
+  let snapshot: Awaited<ReturnType<typeof getSetupSnapshot>>;
+  let settings: Awaited<ReturnType<typeof getPlatformSettings>>;
+  let allBranches: Awaited<ReturnType<typeof listActiveBranches>> = [];
+  let customerFormData: Awaited<ReturnType<typeof getCustomersForSaleForm>> = {
+    walkInCustomerId: "",
+    customers: [],
+  };
+  let products: Awaited<ReturnType<typeof getProducts>> = {
+    items: [],
+    page: 1,
+    pageSize: 10,
+    total: 0,
+    totalPages: 1,
+  };
+  let salesResult: Awaited<ReturnType<typeof getSalesPaginated>> = EMPTY_SALES_PAGE;
+
+  if (tab === "register") {
+    [snapshot, settings, allBranches, customerFormData, products] = await Promise.all([
       getSetupSnapshot(),
       getPlatformSettings(),
       listActiveBranches(),
       getCustomersForSaleForm(),
       getProducts({ status: "ALL" }),
     ]);
+  } else {
+    [snapshot, settings, salesResult] = await Promise.all([
+      getSetupSnapshot(),
+      getPlatformSettings(),
+      getSalesPaginated({
+        branchIds: salesBranchFilter,
+        page,
+        pageSize: 10,
+      }),
+    ]);
+  }
 
   const setupBlock = resolveSetupBlock("sales", snapshot, {
     singleUnitMode: settings.singleUnitMode,
@@ -49,12 +79,6 @@ export default async function SalesPage({
   const branches = isSeller
     ? allBranches.filter((b) => branchIds.includes(b.id))
     : allBranches;
-
-  const salesResult = await getSalesPaginated({
-    branchIds: isSeller && branchIds.length > 0 ? branchIds : undefined,
-    page: tab === "records" ? page : 1,
-    pageSize: 10,
-  });
 
   const defaultBranchId =
     branches.find((b) => !b.isWarehouse)?.id ?? branches[0]?.id ?? "";
@@ -72,19 +96,13 @@ export default async function SalesPage({
     items: sale.items.map((item) => ({
       quantity: item.quantity,
       product: { name: item.product.name },
-      total: item.total,
+      total: item.total.toString(),
     })),
   }));
 
-  return (
-    <AppShell
-      title="Vendas"
-      subtitle="Registro de vendas à vista ou fiado, com atualização automática de estoque e títulos a receber."
-      pathname="/sales"
-    >
-      {setupBlock ? (
-        <SetupEmptyState block={setupBlock} icon={Receipt} />
-      ) : (
+  return setupBlock ? (
+    <SetupEmptyState block={setupBlock} icon={Receipt} />
+  ) : (
         <SalesPageContent
           tab={tab}
           page={salesResult.page}
@@ -106,7 +124,5 @@ export default async function SalesPage({
           }))}
           canWrite={canWrite}
         />
-      )}
-    </AppShell>
   );
 }

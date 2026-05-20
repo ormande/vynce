@@ -1,6 +1,5 @@
 import { BarChart3 } from "lucide-react";
 
-import { AppShell } from "@/components/layout/app-shell";
 import { ReportsPageContent } from "@/components/reports/reports-page-content";
 import { SetupEmptyState } from "@/components/ui/setup-empty-state";
 import { resolveSetupBlock } from "@/lib/setup-blocks";
@@ -18,28 +17,32 @@ export default async function ReportsPage({
   const params = await searchParams;
   const currentTab = params.tab === "funcionarios" ? "funcionarios" : "empresa";
 
-  const [snapshot, settings, company, sellers] = await Promise.all([
-    getSetupSnapshot(),
-    getPlatformSettings(),
-    getCompanyReports(),
-    getSellerPerformanceReport(),
-  ]);
+  let snapshot: Awaited<ReturnType<typeof getSetupSnapshot>>;
+  let settings: Awaited<ReturnType<typeof getPlatformSettings>>;
+  let company: Awaited<ReturnType<typeof getCompanyReports>> | null = null;
+  let sellers: Awaited<ReturnType<typeof getSellerPerformanceReport>> | null = null;
+
+  if (currentTab === "empresa") {
+    [snapshot, settings, company] = await Promise.all([
+      getSetupSnapshot(),
+      getPlatformSettings(),
+      getCompanyReports(),
+    ]);
+  } else {
+    [snapshot, settings, sellers] = await Promise.all([
+      getSetupSnapshot(),
+      getPlatformSettings(),
+      getSellerPerformanceReport(),
+    ]);
+  }
 
   const setupBlock = resolveSetupBlock("reports", snapshot, {
     singleUnitMode: settings.singleUnitMode,
   });
 
-  return (
-    <AppShell
-      title="Relatórios"
-      subtitle="Indicadores da empresa e desempenho da equipe de vendas."
-      pathname="/reports"
-    >
-      {setupBlock ? (
-        <SetupEmptyState block={setupBlock} icon={BarChart3} />
-      ) : (
-        <ReportsPageContent currentTab={currentTab} company={company} sellers={sellers} />
-      )}
-    </AppShell>
+  return setupBlock ? (
+    <SetupEmptyState block={setupBlock} icon={BarChart3} />
+  ) : (
+    <ReportsPageContent currentTab={currentTab} company={company} sellers={sellers} />
   );
 }

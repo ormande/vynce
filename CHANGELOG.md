@@ -5,6 +5,32 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] — 2026-05-20
+
+### Adicionado
+- **`loading.tsx` no grupo `(app)`** e **`AppShellSkeleton`**: feedback imediato na navegação; esqueleto só da área de conteúdo após casca persistente no layout.
+- **`getPageMeta`** (`src/lib/page-meta.ts`): títulos e subtítulos do header derivados da URL no cliente.
+- **Casca persistente** em `src/app/(app)/layout.tsx`: `AppShell` fixo entre rotas; `/unassigned` sem casca.
+- **Memorização por requisição** com `cache()` do React em `auth`, `getPlatformSettings` e `getSetupSnapshot`.
+
+### Alterado
+- **Navegação**: animação de página reduzida para fade de 120ms (`--animate-page-in` → `vynce-fade-in`).
+- **Sidebar e header** (`"use client"`): item ativo e título via `usePathname`; props `pathname` e `title`/`subtitle` removidas do `AppShell`.
+- **Páginas `(app)`**: conteúdo sem `<AppShell>` individual; detalhes de unidade/funcionário exibem nome no corpo da página.
+- **Busca condicional por aba** em vendas, recebíveis e relatórios (só consultas necessárias à aba aberta, um `Promise.all` por caso).
+- **Transferências**: `Promise.all` para unidades, lista e badge; redirect para `/inventory` em `singleUnitMode` (sem aviso na URL direta).
+- **Formulário de venda**: layout em duas colunas com painel **Resumo da venda** (sticky no mobile); seções Produto, Pagamento e Opções.
+- **`DatePicker`**: calendário com largura fixa, posicionamento inteligente (abre para cima perto do rodapé) e `position: fixed`.
+- **`getCustomersForSaleForm`**: usa `listCustomersForPicker` (só `id`, `name`, `phone`) em vez de `listCustomers` com vendas/recebíveis.
+- **`AppShell`**: prop opcional `session` para evitar segundo `auth()` quando a página já resolveu a sessão.
+
+### Corrigido
+- **Botão “Acessar o sistema”** na landing: texto branco no fundo verde (`!text-white`, contornando `a { color: inherit }`).
+- **Página de vendas (registros)**: serialização de `item.total` (`Decimal` → string) ao passar dados ao Client Component.
+- **`ensureWalkInSaleCustomer`**: leitura com `findUnique` antes de criar (sem `upsert` em todo carregamento).
+
+---
+
 ## [1.9.0] — 2026-05-20
 
 ### Adicionado

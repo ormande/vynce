@@ -4,7 +4,6 @@ import { ArrowLeft } from "lucide-react";
 import { Package } from "lucide-react";
 
 import { ProductForm } from "@/components/forms/product-form";
-import { AppShell } from "@/components/layout/app-shell";
 import { SetupEmptyState } from "@/components/ui/setup-empty-state";
 import { resolveSetupBlock } from "@/lib/setup-blocks";
 import { requirePermission } from "@/lib/auth-guards";
@@ -34,11 +33,7 @@ export default async function NewProductPage() {
   });
 
   return (
-    <AppShell
-      title="Novo produto"
-      subtitle="Cadastre um novo item no catálogo com preço, categoria e estoque inicial."
-      pathname="/products"
-    >
+    <>
       <div className="mb-6">
         <Link
           href="/products"
@@ -62,6 +57,6 @@ export default async function NewProductPage() {
           />
         </div>
       )}
-    </AppShell>
+    </>
   );
 }

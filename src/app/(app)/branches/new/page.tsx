@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { BranchCreateForm } from "@/components/forms/branch-create-form";
-import { AppShell } from "@/components/layout/app-shell";
 import { requirePermission } from "@/lib/auth-guards";
 import { permissionCatalog } from "@/lib/permissions";
 
@@ -11,12 +10,7 @@ export default async function NewBranchPage() {
   await requirePermission(permissionCatalog.branchesWrite);
 
   return (
-    <AppShell
-      title="Nova unidade"
-      subtitle="Inclua uma filial ou ajuste o cadastro do depósito central conforme a operação do negócio."
-      pathname="/branches/new"
-    >
-      <div className="max-w-2xl">
+    <div className="max-w-2xl">
         <BranchCreateForm />
         <Link
           href="/branches"
@@ -24,7 +18,6 @@ export default async function NewBranchPage() {
         >
           Voltar para unidades
         </Link>
-      </div>
-    </AppShell>
+    </div>
   );
 }

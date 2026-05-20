@@ -1,6 +1,5 @@
 import { Package } from "lucide-react";
 
-import { AppShell } from "@/components/layout/app-shell";
 import { SetupEmptyState } from "@/components/ui/setup-empty-state";
 import { resolveSetupBlock } from "@/lib/setup-blocks";
 import { Badge } from "@/components/ui/badge";
@@ -58,15 +57,9 @@ export default async function ProductsPage({
     minPrice: p.minPrice.toString(),
   }));
 
-  return (
-    <AppShell
-      title="Produtos"
-      subtitle="Gestão centralizada de catálogo, categorias personalizáveis, preços e status operacional."
-      pathname="/products"
-    >
-      {setupBlock ? (
-        <SetupEmptyState block={setupBlock} icon={Package} />
-      ) : (
+  return setupBlock ? (
+    <SetupEmptyState block={setupBlock} icon={Package} />
+  ) : (
       <ProductsPageContent 
         products={products}
         categories={categories}
@@ -76,7 +69,5 @@ export default async function ProductsPage({
         canWrite={canWrite}
         roleSlug={session?.user.roleSlug}
       />
-      )}
-    </AppShell>
   );
 }

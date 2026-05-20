@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   addMonths,
   eachDayOfInterval,
@@ -33,6 +33,48 @@ function toDateValue(date: Date) {
   return format(date, "yyyy-MM-dd");
 }
 
+const PANEL_WIDTH_PX = 280;
+const PANEL_GAP_PX = 8;
+const PANEL_HEIGHT_ESTIMATE_PX = 300;
+const VIEWPORT_PADDING_PX = 8;
+
+type PanelCoords = {
+  top: number;
+  left: number;
+  placement: "bottom" | "top";
+};
+
+function computePanelCoords(
+  trigger: DOMRect,
+  panelHeight: number,
+  panelWidth: number,
+): PanelCoords {
+  const spaceBelow = window.innerHeight - trigger.bottom - PANEL_GAP_PX;
+  const spaceAbove = trigger.top - PANEL_GAP_PX;
+  const openUp =
+    spaceBelow < panelHeight && spaceAbove >= spaceBelow;
+
+  let top = openUp
+    ? trigger.top - panelHeight - PANEL_GAP_PX
+    : trigger.bottom + PANEL_GAP_PX;
+
+  let left = trigger.left;
+
+  if (left + panelWidth > window.innerWidth - VIEWPORT_PADDING_PX) {
+    left = window.innerWidth - panelWidth - VIEWPORT_PADDING_PX;
+  }
+  if (left < VIEWPORT_PADDING_PX) {
+    left = VIEWPORT_PADDING_PX;
+  }
+
+  top = Math.max(
+    VIEWPORT_PADDING_PX,
+    Math.min(top, window.innerHeight - panelHeight - VIEWPORT_PADDING_PX),
+  );
+
+  return { top, left, placement: openUp ? "top" : "bottom" };
+}
+
 type DatePickerProps = {
   value?: string;
   onChange: (value: string) => void;
@@ -58,7 +100,10 @@ export function DatePicker({
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const [viewDate, setViewDate] = useState(() => parseDateValue(value) ?? new Date());
+  const [panelCoords, setPanelCoords] = useState<PanelCoords | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const selectedDate = useMemo(() => parseDateValue(value), [value]);
   const minDate = useMemo(() => parseDateValue(min), [min]);
@@ -83,9 +128,43 @@ export function DatePicker({
     }
   }, [selectedDate]);
 
+  useLayoutEffect(() => {
+    if (!open) {
+      setPanelCoords(null);
+      return;
+    }
+
+    function updatePosition() {
+      const trigger = triggerRef.current?.getBoundingClientRect();
+      if (!trigger) return;
+
+      const panelHeight =
+        panelRef.current?.offsetHeight ?? PANEL_HEIGHT_ESTIMATE_PX;
+      const panelWidth = panelRef.current?.offsetWidth ?? PANEL_WIDTH_PX;
+
+      setPanelCoords(computePanelCoords(trigger, panelHeight, panelWidth));
+    }
+
+    updatePosition();
+
+    const raf = requestAnimationFrame(updatePosition);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open, viewDate]);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        !containerRef.current?.contains(target) &&
+        !panelRef.current?.contains(target)
+      ) {
         setOpen(false);
       }
     }
@@ -96,6 +175,8 @@ export function DatePicker({
       }
     }
 
+    if (!open) return;
+
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", handleEscape);
 
@@ -103,7 +184,7 @@ export function DatePicker({
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, []);
+  }, [open]);
 
   function isDisabledDay(day: Date) {
     if (minDate && isBefore(day, minDate) && !isSameDay(day, minDate)) {
@@ -124,6 +205,7 @@ export function DatePicker({
   return (
     <div ref={containerRef} className={cn("relative", className)}>
       <button
+        ref={triggerRef}
         type="button"
         disabled={disabled}
         aria-expanded={open}
@@ -172,8 +254,21 @@ export function DatePicker({
       </button>
 
       {open ? (
-        <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[rgba(255,252,248,0.98)] p-4 shadow-[0_18px_50px_rgba(15,23,42,0.14)] backdrop-blur">
-          <div className="mb-4 flex items-center justify-between gap-2">
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-label="Calendário"
+          style={
+            panelCoords
+              ? { top: panelCoords.top, left: panelCoords.left }
+              : { top: -9999, left: 0, visibility: "hidden" as const }
+          }
+          className={cn(
+            "fixed z-[200] w-[17.5rem] overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[rgba(255,252,248,0.98)] p-3 shadow-[0_18px_50px_rgba(15,23,42,0.14)] backdrop-blur",
+            panelCoords?.placement === "top" ? "animate-fade-in" : "animate-slide-down",
+          )}
+        >
+          <div className="mb-3 flex items-center justify-between gap-2">
             <button
               type="button"
               className="rounded-xl p-2 text-[var(--muted-foreground)] transition hover:bg-[rgba(17,30,27,0.06)] hover:text-[var(--foreground)]"
@@ -181,7 +276,7 @@ export function DatePicker({
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <p className="text-sm font-semibold capitalize text-[var(--foreground)]">
+            <p className="text-xs font-semibold capitalize text-[var(--foreground)]">
               {format(viewDate, "MMMM yyyy", { locale: ptBR })}
             </p>
             <button
@@ -193,18 +288,18 @@ export function DatePicker({
             </button>
           </div>
 
-          <div className="mb-2 grid grid-cols-7 gap-1">
+          <div className="mb-1.5 grid grid-cols-7 gap-0.5">
             {["D", "S", "T", "Q", "Q", "S", "S"].map((weekday, index) => (
               <span
                 key={`${weekday}-${index}`}
-                className="py-1 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--muted-foreground)]"
+                className="py-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-[var(--muted-foreground)]"
               >
                 {weekday}
               </span>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-1">
+          <div className="grid grid-cols-7 gap-0.5">
             {calendarDays.map((day) => {
               const selected = selectedDate ? isSameDay(day, selectedDate) : false;
               const outsideMonth = !isSameMonth(day, viewDate);
@@ -216,7 +311,7 @@ export function DatePicker({
                   type="button"
                   disabled={disabledDay}
                   className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-xl text-sm transition",
+                    "mx-auto flex h-8 w-8 items-center justify-center rounded-lg text-xs transition",
                     selected
                       ? "bg-accent text-accent-foreground shadow-md shadow-[rgba(19,41,35,0.16)]"
                       : "text-[var(--foreground)] hover:bg-[rgba(17,30,27,0.06)]",
@@ -232,7 +327,7 @@ export function DatePicker({
             })}
           </div>
 
-          <div className="mt-3 flex justify-end">
+          <div className="mt-2 flex justify-end">
             <button
               type="button"
               className="rounded-xl px-3 py-1.5 text-xs font-semibold text-[var(--accent)] transition hover:bg-[rgba(49,91,77,0.12)]"

@@ -1,6 +1,5 @@
 import { Users } from "lucide-react";
 
-import { AppShell } from "@/components/layout/app-shell";
 import { SellersPageContent } from "@/components/sellers/sellers-page-content";
 import { SetupEmptyState } from "@/components/ui/setup-empty-state";
 import { resolveSetupBlock } from "@/lib/setup-blocks";
@@ -27,15 +26,9 @@ export default async function SellersPage() {
     singleUnitMode: settings.singleUnitMode,
   });
 
-  return (
-    <AppShell
-      title="Funcionários"
-      subtitle="Gerencie os vendedores da sua equipe, vincule-os a unidades e controle o acesso ao sistema."
-      pathname="/sellers"
-    >
-      {setupBlock ? (
-        <SetupEmptyState block={setupBlock} icon={Users} />
-      ) : (
+  return setupBlock ? (
+    <SetupEmptyState block={setupBlock} icon={Users} />
+  ) : (
         <SellersPageContent
           sellers={sellers.map((s) => ({
             id: s.id,
@@ -49,7 +42,5 @@ export default async function SellersPage() {
             })),
           }))}
         />
-      )}
-    </AppShell>
   );
 }

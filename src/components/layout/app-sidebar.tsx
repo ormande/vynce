@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   ArrowLeftRight,
   BarChart3,
@@ -21,47 +24,46 @@ import { cn } from "@/lib/utils";
 
 function buildOwnerNavItems(singleUnitMode: boolean) {
   return [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  ...(SHOW_CUSTOMERS_MODULE_UI
-    ? [{ href: "/customers" as const, label: "Clientes", icon: Users }]
-    : []),
-  { href: "/products", label: "Produtos", icon: Package },
-  { href: "/branches", label: "Unidades", icon: Building2 },
-  { href: "/sellers", label: "Funcionários", icon: Users },
-  { href: "/inventory", label: "Estoque", icon: Boxes },
-  ...(!singleUnitMode
-    ? [{ href: "/transfers" as const, label: "Transferências", icon: ArrowLeftRight }]
-    : []),
-  { href: "/sales", label: "Vendas", icon: Receipt },
-  ...(SHOW_RECEIVABLES_MODULE_UI
-    ? [{ href: "/receivables" as const, label: "Contas a receber", icon: CreditCard }]
-    : []),
-  { href: "/reports", label: "Relatórios", icon: BarChart3 },
-  { href: "/settings", label: "Configurações", icon: Settings },
-];
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    ...(SHOW_CUSTOMERS_MODULE_UI
+      ? [{ href: "/customers" as const, label: "Clientes", icon: Users }]
+      : []),
+    { href: "/products", label: "Produtos", icon: Package },
+    { href: "/branches", label: "Unidades", icon: Building2 },
+    { href: "/sellers", label: "Funcionários", icon: Users },
+    { href: "/inventory", label: "Estoque", icon: Boxes },
+    ...(!singleUnitMode
+      ? [{ href: "/transfers" as const, label: "Transferências", icon: ArrowLeftRight }]
+      : []),
+    { href: "/sales", label: "Vendas", icon: Receipt },
+    ...(SHOW_RECEIVABLES_MODULE_UI
+      ? [{ href: "/receivables" as const, label: "Contas a receber", icon: CreditCard }]
+      : []),
+    { href: "/reports", label: "Relatórios", icon: BarChart3 },
+    { href: "/settings", label: "Configurações", icon: Settings },
+  ];
 }
 
 function buildSellerNavItems(singleUnitMode: boolean) {
   return [
-  { href: "/sales", label: "Vendas", icon: Receipt },
-  { href: "/inventory", label: "Estoque", icon: Boxes },
-  ...(!singleUnitMode
-    ? [{ href: "/transfers" as const, label: "Transferências", icon: ArrowLeftRight }]
-    : []),
-];
+    { href: "/sales", label: "Vendas", icon: Receipt },
+    { href: "/inventory", label: "Estoque", icon: Boxes },
+    ...(!singleUnitMode
+      ? [{ href: "/transfers" as const, label: "Transferências", icon: ArrowLeftRight }]
+      : []),
+  ];
 }
 
 export function AppSidebar({
-  pathname,
   roleSlug,
   transferBadgeCount = 0,
   singleUnitMode = false,
 }: {
-  pathname: string;
   roleSlug?: string | null;
   transferBadgeCount?: number;
   singleUnitMode?: boolean;
 }) {
+  const path = usePathname();
   const items =
     roleSlug === "seller"
       ? buildSellerNavItems(singleUnitMode)
@@ -82,8 +84,7 @@ export function AppSidebar({
       <nav className="mt-6 space-y-1">
         {items.map((item) => {
           const Icon = item.icon;
-          const active =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active = path === item.href || path.startsWith(`${item.href}/`);
 
           return (
             <Link

@@ -1,6 +1,5 @@
 import { Boxes } from "lucide-react";
 
-import { AppShell } from "@/components/layout/app-shell";
 import { InventoryPageContent } from "@/components/inventory/inventory-page-content";
 import { SetupEmptyState } from "@/components/ui/setup-empty-state";
 import { resolveSetupBlock } from "@/lib/setup-blocks";
@@ -77,15 +76,9 @@ export default async function InventoryPage({
 
   const stockBranches = allowedBranches.map((b) => ({ id: b.id, name: b.name }));
 
-  return (
-    <AppShell
-      title="Estoque"
-      subtitle="Monitoramento de quantidades disponíveis, itens críticos e últimas movimentações."
-      pathname="/inventory"
-    >
-      {setupBlock ? (
-        <SetupEmptyState block={setupBlock} icon={Boxes} />
-      ) : (
+  return setupBlock ? (
+    <SetupEmptyState block={setupBlock} icon={Boxes} />
+  ) : (
       <InventoryPageContent
         items={inventorySnapshot.items.map((item) => ({
           ...item,
@@ -112,7 +105,5 @@ export default async function InventoryPage({
         canAddStock={canAddStock}
         singleUnitMode={settings.singleUnitMode}
       />
-      )}
-    </AppShell>
   );
 }

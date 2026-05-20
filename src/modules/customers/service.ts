@@ -12,6 +12,7 @@ import {
   findCustomerWithCounts,
   hardDeleteCustomer,
   listCustomers,
+  listCustomersForPicker,
   patchCustomer,
   softDeleteCustomer,
   WALK_IN_SALE_CUSTOMER_PHONE,
@@ -38,7 +39,7 @@ export async function getCustomersForSaleForm() {
   const walkIn = await ensureWalkInSaleCustomer();
 
   if (SHOW_CUSTOMERS_MODULE_UI) {
-    const rows = await listCustomers();
+    const rows = await listCustomersForPicker();
     return {
       walkInCustomerId: walkIn.id,
       customers: rows.map((customer) => ({
@@ -51,7 +52,7 @@ export async function getCustomersForSaleForm() {
   }
 
   if (SHOW_RECEIVABLES_MODULE_UI) {
-    const rows = await listCustomers();
+    const rows = await listCustomersForPicker();
     return {
       walkInCustomerId: walkIn.id,
       customers: rows

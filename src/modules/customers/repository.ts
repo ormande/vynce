@@ -39,6 +39,15 @@ export async function listCustomers(search?: string, includeInactive = false) {
   });
 }
 
+/** Lista mínima de clientes ativos para seletores (venda, fiado, etc.). */
+export async function listCustomersForPicker() {
+  return db.customer.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true, phone: true },
+    orderBy: { name: "asc" },
+  });
+}
+
 export async function createCustomer(data: {
   name: string;
   phone?: string | null;
@@ -103,10 +112,17 @@ export async function softDeleteCustomer(id: string) {
 }
 
 export async function ensureWalkInSaleCustomer() {
-  return db.customer.upsert({
+  const existing = await db.customer.findUnique({
     where: { phone: WALK_IN_SALE_CUSTOMER_PHONE },
-    update: {},
-    create: {
+    select: { id: true, name: true },
+  });
+
+  if (existing) {
+    return existing;
+  }
+
+  return db.customer.create({
+    data: {
       name: "Venda avulsa",
       phone: WALK_IN_SALE_CUSTOMER_PHONE,
       notes: "Cliente interno usado quando o módulo de clientes está oculto na interface.",

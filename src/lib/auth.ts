@@ -2,6 +2,7 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { type Role } from "@prisma/client";
 import type { DefaultSession, NextAuthOptions } from "next-auth";
 import { getServerSession } from "next-auth";
+import { cache } from "react";
 import GoogleProvider from "next-auth/providers/google";
 
 import { db } from "@/lib/db";
@@ -183,6 +184,4 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
-export function auth() {
-  return getServerSession(authOptions);
-}
+export const auth = cache(() => getServerSession(authOptions));

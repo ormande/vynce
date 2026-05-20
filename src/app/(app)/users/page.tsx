@@ -1,5 +1,4 @@
 import { Users } from "lucide-react";
-import { AppShell } from "@/components/layout/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Table } from "@/components/ui/table";
@@ -14,11 +13,6 @@ export default async function UsersPage() {
   const users = await listUsers();
 
   return (
-    <AppShell
-      title="Usuários"
-      subtitle="Visão inicial da base de acessos persistida no banco, com papel e status de cada colaborador."
-      pathname="/users"
-    >
       <Card>
         <Table>
           <thead>
@@ -68,6 +62,5 @@ export default async function UsersPage() {
           </tbody>
         </Table>
       </Card>
-    </AppShell>
   );
 }

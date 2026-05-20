@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { Users } from "lucide-react";
 
 import { CustomersPageContent } from "@/components/customers/customers-page-content";
-import { AppShell } from "@/components/layout/app-shell";
 import { SetupEmptyState } from "@/components/ui/setup-empty-state";
 import { resolveSetupBlock } from "@/lib/setup-blocks";
 import { auth } from "@/lib/auth";
@@ -59,15 +58,9 @@ export default async function CustomersPage({
     singleUnitMode: settings.singleUnitMode,
   });
 
-  return (
-    <AppShell
-      title="Clientes"
-      subtitle="Cadastro de clientes com histórico de compras e saldo devedor calculado automaticamente."
-      pathname="/customers"
-    >
-      {setupBlock ? (
-        <SetupEmptyState block={setupBlock} icon={Users} />
-      ) : (
+  return setupBlock ? (
+    <SetupEmptyState block={setupBlock} icon={Users} />
+  ) : (
       <CustomersPageContent
         customers={paginated.items}
         page={paginated.page}
@@ -76,7 +69,5 @@ export default async function CustomersPage({
         searchQuery={params?.q ?? ""}
         canWrite={canWrite}
       />
-      )}
-    </AppShell>
   );
 }

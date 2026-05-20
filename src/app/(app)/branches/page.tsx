@@ -1,6 +1,5 @@
 import { Building2 } from "lucide-react";
 
-import { AppShell } from "@/components/layout/app-shell";
 import { BranchesPageContent } from "@/components/branches/branches-page-content";
 import { SetupEmptyState } from "@/components/ui/setup-empty-state";
 import { resolveSetupBlock } from "@/lib/setup-blocks";
@@ -20,15 +19,9 @@ export default async function BranchesPage() {
   ]);
   const setupBlock = resolveSetupBlock("branches", snapshot);
 
-  return (
-    <AppShell
-      title="Unidades"
-      subtitle="Filiais, lojas e depósito central. Estoque e vendas são vinculados à unidade selecionada."
-      pathname="/branches"
-    >
-      {setupBlock ? (
-        <SetupEmptyState block={setupBlock} icon={Building2} />
-      ) : (
+  return setupBlock ? (
+    <SetupEmptyState block={setupBlock} icon={Building2} />
+  ) : (
       <BranchesPageContent
         canWrite={canWrite}
         branches={branches.map((b) => ({
@@ -40,7 +33,5 @@ export default async function BranchesPage() {
           zeroStockProductCount: b.zeroStockProductCount,
         }))}
       />
-      )}
-    </AppShell>
   );
 }

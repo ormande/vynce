@@ -1,6 +1,5 @@
 import { LayoutDashboard } from "lucide-react";
 
-import { AppShell } from "@/components/layout/app-shell";
 import { SalesOverviewChart } from "@/components/charts/sales-overview-chart";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -26,32 +25,22 @@ export default async function DashboardPage() {
 
   if (setupBlock) {
     return (
-      <AppShell
-        title="Dashboard"
-        subtitle="Configure o básico do negócio para liberar indicadores e gráficos."
-        pathname="/dashboard"
-      >
-        <SetupEmptyState
-          block={setupBlock}
-          icon={LayoutDashboard}
-          steps={[
-            { label: "Cadastrar unidade", done: snapshot.hasBranches },
-            { label: "Criar categorias de produtos", done: snapshot.hasCategories },
-            { label: "Cadastrar produtos no catálogo", done: snapshot.hasProducts },
-          ]}
-        />
-      </AppShell>
+      <SetupEmptyState
+        block={setupBlock}
+        icon={LayoutDashboard}
+        steps={[
+          { label: "Cadastrar unidade", done: snapshot.hasBranches },
+          { label: "Criar categorias de produtos", done: snapshot.hasCategories },
+          { label: "Cadastrar produtos no catálogo", done: snapshot.hasProducts },
+        ]}
+      />
     );
   }
 
   const dashboard = await getDashboardMetrics();
 
   return (
-    <AppShell
-      title="Dashboard"
-      subtitle="Panorama do negócio com foco em vendas, inadimplência e capacidade operacional."
-      pathname="/dashboard"
-    >
+    <>
       <div className="grid gap-4 lg:grid-cols-4">
         <MetricCard
           label="Vendas do dia"
@@ -177,6 +166,6 @@ export default async function DashboardPage() {
           </div>
         </Card>
       </div>
-    </AppShell>
+    </>
   );
 }

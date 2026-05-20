@@ -40,8 +40,8 @@ export function ReportsPageContent({
   sellers,
 }: {
   currentTab: "empresa" | "funcionarios";
-  company: CompanyReports;
-  sellers: SellerRow[];
+  company?: CompanyReports | null;
+  sellers?: SellerRow[] | null;
 }) {
   return (
     <div className="space-y-6">
@@ -72,7 +72,7 @@ export function ReportsPageContent({
         </div>
       </div>
 
-      {currentTab === "empresa" ? (
+      {currentTab === "empresa" && company ? (
         <>
           <div className="grid gap-4 lg:grid-cols-3">
             <Card>
@@ -105,7 +105,9 @@ export function ReportsPageContent({
             </div>
           </Card>
         </>
-      ) : (
+      ) : null}
+
+      {currentTab === "funcionarios" && sellers ? (
         <Card>
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -178,7 +180,7 @@ export function ReportsPageContent({
             </tbody>
           </Table>
         </Card>
-      )}
+      ) : null}
     </div>
   );
 }

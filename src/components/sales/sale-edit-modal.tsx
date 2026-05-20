@@ -23,7 +23,7 @@ export type SaleRecordRow = {
   dueDate: string | null;
   notes: string | null;
   total: string;
-  items: { quantity: number; product: { name: string }; total: unknown }[];
+  items: { quantity: number; product: { name: string }; total: string }[];
 };
 
 type CustomerOption = {

@@ -1,20 +1,30 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+
 import { Badge } from "@/components/ui/badge";
 import { GlobalSearch } from "@/components/layout/global-search";
 import { NotificationCenter } from "@/components/layout/notification-center";
+import { getPageMeta } from "@/lib/page-meta";
 
 export function AppHeader({
-  title,
-  subtitle,
+  title: titleProp,
+  subtitle: subtitleProp,
   userName,
   roleLabel,
   notificationCount = 0,
 }: {
-  title: string;
-  subtitle: string;
+  title?: string;
+  subtitle?: string;
   userName?: string | null;
   roleLabel?: string;
   notificationCount?: number;
 }) {
+  const pathname = usePathname();
+  const derived = getPageMeta(pathname);
+  const title = titleProp ?? derived.title;
+  const subtitle = subtitleProp ?? derived.subtitle;
+
   return (
     <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div>

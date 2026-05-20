@@ -3,7 +3,6 @@ import { Building2, Package } from "lucide-react";
 
 import { BranchActiveToggle } from "@/components/branches/branch-active-toggle";
 import { BranchEmployeesPanel } from "@/components/branches/branch-employees-panel";
-import { AppShell } from "@/components/layout/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Table } from "@/components/ui/table";
@@ -38,11 +37,16 @@ export default async function BranchDetailPage({
     }));
 
   return (
-    <AppShell
-      title={branch.name}
-      subtitle={branch.address ?? "Unidade cadastrada no sistema multifilial."}
-      pathname={`/branches/${branch.id}`}
-    >
+    <>
+      <div className="mb-6">
+        <h2 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
+          {branch.name}
+        </h2>
+        {branch.address ? (
+          <p className="mt-2 text-sm text-[var(--muted-foreground)]">{branch.address}</p>
+        ) : null}
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={branch.isActive ? "success" : "neutral"}>
@@ -128,6 +132,6 @@ export default async function BranchDetailPage({
           </tbody>
         </Table>
       </Card>
-    </AppShell>
+    </>
   );
 }

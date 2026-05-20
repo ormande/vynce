@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ReactNode } from "react";
 
+import { AppShell } from "@/components/layout/app-shell";
 import { requireSession } from "@/lib/auth-guards";
 
 export default async function ProtectedLayout({
@@ -23,6 +24,9 @@ export default async function ProtectedLayout({
     }
   }
 
-  return children;
-}
+  if (onUnassignedScreen) {
+    return children;
+  }
 
+  return <AppShell session={session}>{children}</AppShell>;
+}

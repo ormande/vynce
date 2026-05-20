@@ -65,7 +65,7 @@
   --animate-overlay-out: vynce-overlay-out 180ms ease-in  both;
   --animate-modal-in:    vynce-modal-in    300ms cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-modal-out:   vynce-modal-out   180ms ease-in both;
-  --animate-page-in:     vynce-page-in     340ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-page-in:     vynce-fade-in     120ms ease-out both;
   --animate-fade-in:     vynce-fade-in     220ms ease-out both;
   --animate-slide-down:  vynce-slide-down  200ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }

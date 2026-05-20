@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { db } from "@/lib/db";
 import { WALK_IN_SALE_CUSTOMER_PHONE } from "@/modules/customers/repository";
 
@@ -16,7 +18,7 @@ export type SetupSnapshot = {
   hasCustomers: boolean;
 };
 
-export async function getSetupSnapshot(): Promise<SetupSnapshot> {
+export const getSetupSnapshot = cache(async (): Promise<SetupSnapshot> => {
   const [
     branchCount,
     categoryCount,
@@ -49,4 +51,4 @@ export async function getSetupSnapshot(): Promise<SetupSnapshot> {
     hasSellers: sellerCount > 0,
     hasCustomers: customerCount > 0,
   };
-}
+});

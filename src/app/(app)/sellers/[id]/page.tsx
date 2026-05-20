@@ -1,4 +1,3 @@
-import { AppShell } from "@/components/layout/app-shell";
 import { SellerDetailsContent } from "@/components/sellers/seller-details-content";
 import { auth } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
@@ -28,12 +27,13 @@ export default async function SellerDetailPage({
   }
 
   return (
-    <AppShell
-      title={seller.name ?? "Funcionário"}
-      subtitle="Gerencie o vínculo com unidades, status da conta e visualize o histórico do funcionário."
-      pathname="/sellers"
-    >
+    <>
+      <div className="mb-6">
+        <h2 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
+          {seller.name ?? "Funcionário"}
+        </h2>
+      </div>
       <SellerDetailsContent seller={seller} branches={branches} />
-    </AppShell>
+    </>
   );
 }

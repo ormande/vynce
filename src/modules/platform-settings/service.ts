@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { z } from "zod";
 
 import {
@@ -17,13 +18,13 @@ const updateSettingsSchema = z
     { message: "Informe ao menos uma preferência." },
   );
 
-export async function getPlatformSettings() {
+export const getPlatformSettings = cache(async () => {
   const row = await findPlatformSettings();
   return {
     allowSalesWithoutStock: row?.allowSalesWithoutStock ?? false,
     singleUnitMode: row?.singleUnitMode ?? false,
   };
-}
+});
 
 export async function updatePlatformSettings(input: unknown) {
   const data = updateSettingsSchema.parse(input);

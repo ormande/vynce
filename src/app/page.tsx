@@ -70,10 +70,10 @@ export default function Home() {
         <div className="mt-11 flex flex-col items-center gap-4 sm:flex-row">
           <Link
             href="/signin"
-            className="inline-flex items-center gap-2.5 rounded-full bg-[var(--accent)] px-8 py-4 text-sm font-semibold text-[var(--accent-foreground)] shadow-[0_18px_50px_rgba(49,91,77,0.28)] transition hover:bg-[var(--accent-strong)] hover:shadow-[0_22px_60px_rgba(49,91,77,0.34)] active:scale-[0.97]"
+            className="inline-flex items-center gap-2.5 rounded-full bg-[var(--accent)] px-8 py-4 text-sm font-semibold !text-white shadow-[0_18px_50px_rgba(49,91,77,0.28)] transition hover:bg-[var(--accent-strong)] hover:shadow-[0_22px_60px_rgba(49,91,77,0.34)] active:scale-[0.97]"
           >
             Acessar o sistema
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-4 w-4 text-white" />
           </Link>
           <Link
             href="/dashboard"
