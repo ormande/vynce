@@ -63,21 +63,35 @@ export async function getInventorySnapshot(params: {
     };
   }
 
-  const [productsResult, movements, allProducts] = await Promise.all([
+  const [productsResult, movements, branchTotals, allProductsMeta] = await Promise.all([
     getProducts({ page, pageSize: pageSize, status: "ALL" }),
     listInventoryMovements(),
+    db.branchStock.groupBy({
+      by: ["productId"],
+      _sum: { quantity: true },
+    }),
     db.product.findMany({
-      select: { id: true, name: true, stockQuantity: true, lowStockThreshold: true }
+      select: { id: true, name: true, lowStockThreshold: true },
     }),
   ]);
 
-  const lowStock = allProducts
-    .filter((product) => product.stockQuantity <= product.lowStockThreshold)
+  const totalsByProduct = new Map(
+    branchTotals.map((row) => [row.productId, row._sum.quantity ?? 0]),
+  );
+
+  const lowStock = allProductsMeta
     .map((product) => ({
       id: product.id,
       name: product.name,
-      stockQuantity: product.stockQuantity,
+      stockQuantity: totalsByProduct.get(product.id) ?? 0,
       lowStockThreshold: product.lowStockThreshold,
+    }))
+    .filter((row) => row.stockQuantity <= row.lowStockThreshold)
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+      stockQuantity: row.stockQuantity,
+      lowStockThreshold: row.lowStockThreshold,
       branchName: null,
     }))
     .slice(0, 10);
@@ -88,7 +102,7 @@ export async function getInventorySnapshot(params: {
     code: p.code,
     categoryName: p.category.name,
     salePrice: p.salePrice,
-    stockQuantity: p.stockQuantity,
+    stockQuantity: totalsByProduct.get(p.id) ?? 0,
     status: p.status,
   }));
 

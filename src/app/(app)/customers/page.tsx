@@ -1,13 +1,18 @@
 import { redirect } from "next/navigation";
+
 import { Users } from "lucide-react";
 
-import { CustomerForm } from "@/components/forms/customer-form";
+import { CustomersPageContent } from "@/components/customers/customers-page-content";
 import { AppShell } from "@/components/layout/app-shell";
-import { Card } from "@/components/ui/card";
-import { Table } from "@/components/ui/table";
+import { SetupEmptyState } from "@/components/ui/setup-empty-state";
+import { resolveSetupBlock } from "@/lib/setup-blocks";
+import { auth } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth-guards";
 import { SHOW_CUSTOMERS_MODULE_UI } from "@/lib/platform-config";
-import { formatCurrency } from "@/lib/utils";
+import { hasPermission, permissionCatalog } from "@/lib/permissions";
 import { getCustomers } from "@/modules/customers/service";
+import { getPlatformSettings } from "@/modules/platform-settings/service";
+import { getSetupSnapshot } from "@/modules/setup/service";
 
 export const dynamic = "force-dynamic";
 
@@ -20,66 +25,48 @@ export default async function CustomersPage({
     redirect("/dashboard");
   }
 
+  await requirePermission(permissionCatalog.customersRead);
+
+  const session = await auth();
+  const canWrite = hasPermission(
+    session?.user.permissions,
+    permissionCatalog.customersWrite,
+  );
+
   const params = await searchParams;
-  const customers = await getCustomers(params?.q);
+  const [snapshot, settings, customers] = await Promise.all([
+    getSetupSnapshot(),
+    getPlatformSettings(),
+    getCustomers(params?.q),
+  ]);
+
+  const setupBlock = resolveSetupBlock("customers", snapshot, {
+    singleUnitMode: settings.singleUnitMode,
+  });
 
   return (
     <AppShell
       title="Clientes"
-      subtitle="Cadastro com visão de histórico de compras e saldo devedor calculado automaticamente."
+      subtitle="Cadastro de clientes com histórico de compras e saldo devedor calculado automaticamente."
       pathname="/customers"
     >
-      <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-        <CustomerForm />
-        <Card>
-          <div className="mb-5">
-            <h3 className="text-xl font-semibold text-[var(--foreground)]">
-              Base de clientes
-            </h3>
-          </div>
-          <Table>
-            <thead>
-              <tr className="text-center text-sm text-[var(--muted-foreground)]">
-                <th className="px-4 py-2 text-left">Cliente</th>
-                <th className="px-4 py-2">Contato</th>
-                <th className="px-4 py-2">Compras</th>
-                <th className="px-4 py-2">Saldo devedor</th>
-              </tr>
-            </thead>
-            <tbody>
-              {customers.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="py-12 text-center text-sm text-[var(--muted-foreground)]">
-                    <div className="flex flex-col items-center justify-center">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--panel-strong)] mb-3">
-                        <Users className="h-6 w-6 opacity-40" />
-                      </div>
-                      <p>Nenhum cliente cadastrado.</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                customers.map((customer) => (
-                  <tr key={customer.id} className="rounded-3xl bg-[var(--panel-strong)] transition-colors hover:bg-white shadow-sm hover:shadow-md text-center">
-                    <td className="rounded-l-3xl px-4 py-4 font-medium text-[var(--foreground)] text-left">
-                      {customer.name}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-[var(--muted-foreground)]">
-                      {customer.phone}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-[var(--muted-foreground)]">
-                      {customer.purchaseHistoryCount}
-                    </td>
-                    <td className="rounded-r-3xl px-4 py-4 font-medium text-[var(--foreground)]">
-                      {formatCurrency(customer.outstandingBalance)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </Table>
-        </Card>
-      </div>
+      {setupBlock ? (
+        <SetupEmptyState block={setupBlock} icon={Users} />
+      ) : (
+      <CustomersPageContent
+        customers={customers.map((customer) => ({
+          id: customer.id,
+          name: customer.name,
+          phone: customer.phone,
+          cpf: customer.cpf,
+          address: customer.address,
+          notes: customer.notes,
+          purchaseHistoryCount: customer.purchaseHistoryCount,
+          outstandingBalance: customer.outstandingBalance,
+        }))}
+        canWrite={canWrite}
+      />
+      )}
     </AppShell>
   );
 }

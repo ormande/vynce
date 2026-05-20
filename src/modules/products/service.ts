@@ -6,7 +6,7 @@ import {
   listCategories,
   listProducts,
 } from "@/modules/products/repository";
-import { productSchema } from "@/modules/products/schemas";
+import { productSchema, productUpdateSchema } from "@/modules/products/schemas";
 
 export async function getProducts(params?: {
   search?: string;
@@ -22,7 +22,7 @@ export async function getActiveCategories() {
 }
 
 export async function updateProduct(id: string, input: unknown) {
-  const data = productSchema.parse(input);
+  const data = productUpdateSchema.parse(input);
   return db.product.update({
     where: { id },
     data: {
@@ -31,7 +31,6 @@ export async function updateProduct(id: string, input: unknown) {
       costPrice: new Prisma.Decimal(data.costPrice),
       salePrice: new Prisma.Decimal(data.salePrice),
       minPrice: new Prisma.Decimal(data.minPrice),
-      stockQuantity: data.stockQuantity,
       lowStockThreshold: data.lowStockThreshold,
       status: data.status,
       code: data.code || null,

@@ -1,6 +1,11 @@
 import { type Prisma, type TransferStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
+import {
+  applyBranchStockDelta,
+  ensureBranchStockRow,
+  getBranchStockQuantity,
+} from "@/lib/stock-ledger";
 
 export const stockTransferInclude = {
   fromBranch: true,
@@ -63,86 +68,40 @@ export async function confirmStockTransferAtomic(
       throw new Error("Transferência não encontrada ou já processada.");
     }
 
-    const fromRow = await tx.branchStock.findUnique({
-      where: {
-        branchId_productId: {
-          branchId: t.fromBranchId,
-          productId: t.productId,
-        },
-      },
-    });
-    if (!fromRow || fromRow.quantity < t.quantity) {
+    const fromAvailable = await getBranchStockQuantity(
+      tx,
+      t.fromBranchId,
+      t.productId,
+    );
+    if (fromAvailable < t.quantity) {
       throw new Error(
         "Estoque insuficiente na unidade de origem para confirmar esta transferência.",
       );
     }
 
-    const toRow = await tx.branchStock.findUnique({
-      where: {
-        branchId_productId: {
-          branchId: t.toBranchId,
-          productId: t.productId,
-        },
-      },
-    });
-
-    const product = await tx.product.findUniqueOrThrow({
-      where: { id: t.productId },
-    });
-
-    const prevFrom = fromRow.quantity;
-    const newFrom = prevFrom - t.quantity;
-    await tx.branchStock.update({
-      where: { id: fromRow.id },
-      data: { quantity: newFrom },
-    });
-
-    const prevTo = toRow?.quantity ?? 0;
-    const newTo = prevTo + t.quantity;
-    if (!toRow) {
-      await tx.branchStock.create({
-        data: {
-          branchId: t.toBranchId,
-          productId: t.productId,
-          quantity: newTo,
-          lowStockThreshold: product.lowStockThreshold,
-        },
-      });
-    } else {
-      await tx.branchStock.update({
-        where: { id: toRow.id },
-        data: { quantity: newTo },
-      });
-    }
+    await ensureBranchStockRow(tx, t.toBranchId, t.productId);
 
     const [fromBr, toBr] = await Promise.all([
       tx.branch.findUnique({ where: { id: t.fromBranchId }, select: { name: true } }),
       tx.branch.findUnique({ where: { id: t.toBranchId }, select: { name: true } }),
     ]);
 
-    await tx.inventoryMovement.create({
-      data: {
-        productId: t.productId,
-        branchId: t.fromBranchId,
-        performedById: confirmedById,
-        type: "TRANSFER_OUT",
-        quantity: t.quantity,
-        previousStock: prevFrom,
-        currentStock: newFrom,
-        note: `Transferência ${t.id} → ${toBr?.name ?? t.toBranchId}`,
-      },
+    await applyBranchStockDelta(tx, {
+      branchId: t.fromBranchId,
+      productId: t.productId,
+      delta: -t.quantity,
+      type: "TRANSFER_OUT",
+      performedById: confirmedById,
+      note: `Transferência ${t.id} → ${toBr?.name ?? t.toBranchId}`,
     });
-    await tx.inventoryMovement.create({
-      data: {
-        productId: t.productId,
-        branchId: t.toBranchId,
-        performedById: confirmedById,
-        type: "TRANSFER_IN",
-        quantity: t.quantity,
-        previousStock: prevTo,
-        currentStock: newTo,
-        note: `Transferência ${t.id} ← ${fromBr?.name ?? t.fromBranchId}`,
-      },
+
+    await applyBranchStockDelta(tx, {
+      branchId: t.toBranchId,
+      productId: t.productId,
+      delta: t.quantity,
+      type: "TRANSFER_IN",
+      performedById: confirmedById,
+      note: `Transferência ${t.id} ← ${fromBr?.name ?? t.fromBranchId}`,
     });
 
     return tx.stockTransfer.update({

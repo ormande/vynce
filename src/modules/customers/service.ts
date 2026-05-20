@@ -1,41 +1,104 @@
-import { SHOW_CUSTOMERS_MODULE_UI } from "@/lib/platform-config";
+import { Prisma } from "@prisma/client";
+
+import { AppError } from "@/lib/errors";
+import { onlyDigits } from "@/lib/utils";
+import {
+  SHOW_CUSTOMERS_MODULE_UI,
+  SHOW_RECEIVABLES_MODULE_UI,
+} from "@/lib/platform-config";
 import {
   createCustomer,
   ensureWalkInSaleCustomer,
   listCustomers,
+  WALK_IN_SALE_CUSTOMER_PHONE,
 } from "@/modules/customers/repository";
 import { customerSchema } from "@/modules/customers/schemas";
 
 export async function getCustomers(search?: string) {
   const customers = await listCustomers(search);
 
-  return customers.map((customer) => ({
-    ...customer,
-    purchaseHistoryCount: customer.sales.length,
-    outstandingBalance: customer.receivables.reduce(
-      (total, receivable) => total + Number(receivable.balanceDue),
-      0,
-    ),
-  }));
+  return customers
+    .filter((customer) => customer.phone !== WALK_IN_SALE_CUSTOMER_PHONE)
+    .map((customer) => ({
+      ...customer,
+      purchaseHistoryCount: customer.sales.length,
+      outstandingBalance: customer.receivables.reduce(
+        (total, receivable) => total + Number(receivable.balanceDue),
+        0,
+      ),
+    }));
 }
 
 /** Opções mínimas para o formulário de venda (com ou sem módulo de clientes na UI). */
 export async function getCustomersForSaleForm() {
+  const walkIn = await ensureWalkInSaleCustomer();
+
   if (SHOW_CUSTOMERS_MODULE_UI) {
     const rows = await listCustomers();
-    return rows.map((customer) => ({ id: customer.id, name: customer.name }));
+    return {
+      walkInCustomerId: walkIn.id,
+      customers: rows.map((customer) => ({
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        isWalkIn: customer.phone === WALK_IN_SALE_CUSTOMER_PHONE,
+      })),
+    };
   }
 
-  const walkIn = await ensureWalkInSaleCustomer();
-  return [{ id: walkIn.id, name: walkIn.name }];
+  if (SHOW_RECEIVABLES_MODULE_UI) {
+    const rows = await listCustomers();
+    return {
+      walkInCustomerId: walkIn.id,
+      customers: rows
+        .filter((customer) => customer.phone !== WALK_IN_SALE_CUSTOMER_PHONE)
+        .map((customer) => ({
+          id: customer.id,
+          name: customer.name,
+          phone: customer.phone,
+          isWalkIn: false,
+        })),
+    };
+  }
+
+  return {
+    walkInCustomerId: walkIn.id,
+    customers: [
+      {
+        id: walkIn.id,
+        name: walkIn.name,
+        phone: WALK_IN_SALE_CUSTOMER_PHONE,
+        isWalkIn: true,
+      },
+    ],
+  };
 }
 
 export async function registerCustomer(input: unknown) {
   const data = customerSchema.parse(input);
-  return createCustomer({
-    ...data,
-    cpf: data.cpf || undefined,
-    address: data.address || undefined,
-    notes: data.notes || undefined,
-  });
+
+  const phoneDigits = onlyDigits(data.phone);
+  const cpfDigits = data.cpf ? onlyDigits(data.cpf) : "";
+
+  if (phoneDigits === WALK_IN_SALE_CUSTOMER_PHONE) {
+    throw new AppError("Este telefone é reservado para vendas avulsas.", 400);
+  }
+
+  try {
+    return await createCustomer({
+      ...data,
+      phone: phoneDigits,
+      cpf: cpfDigits || undefined,
+      address: data.address || undefined,
+      notes: data.notes || undefined,
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      throw new AppError("Já existe um cliente com este telefone ou CPF.", 409);
+    }
+    throw error;
+  }
 }

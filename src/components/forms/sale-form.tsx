@@ -1,22 +1,25 @@
 "use client";
 
 import { PaymentMethod } from "@prisma/client";
-import { useEffect, useMemo, useState } from "react";
+import { addDays, format, startOfToday } from "date-fns";
+import { Search, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { DropdownSelect } from "@/components/ui/dropdown-select";
 import { Input } from "@/components/ui/input";
+import { SHOW_RECEIVABLES_MODULE_UI } from "@/lib/platform-config";
 import { cn, formatCurrency, parseCurrencyInput } from "@/lib/utils";
 
 type ProductOption = {
   id: string;
   name: string;
   salePrice: number | string;
-  stockQuantity: number;
 };
 
 type BranchOption = {
@@ -25,36 +28,217 @@ type BranchOption = {
   isWarehouse: boolean;
 };
 
-const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string }[] = [
+const BASE_PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string }[] = [
   { value: PaymentMethod.CASH, label: "Dinheiro" },
   { value: PaymentMethod.PIX, label: "Pix" },
   { value: PaymentMethod.DEBIT_CARD, label: "Cartão de débito" },
   { value: PaymentMethod.CREDIT_CARD, label: "Cartão de crédito" },
 ];
 
+function defaultDueDateIso() {
+  return format(addDays(new Date(), 30), "yyyy-MM-dd");
+}
+
+type CustomerOption = {
+  id: string;
+  name: string;
+  phone?: string;
+  isWalkIn?: boolean;
+};
+
 const numberInputClassName =
   "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+
+function CustomerSearchInput({
+  customers,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  className,
+}: {
+  customers: CustomerOption[];
+  value: string;
+  onChange: (id: string) => void;
+  placeholder: string;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const [searchText, setSearchText] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const selectedCustomer = customers.find((c) => c.id === value);
+
+  const filtered = useMemo(() => {
+    if (!searchText.trim()) return customers;
+    const lower = searchText.toLowerCase();
+    return customers.filter(
+      (c) =>
+        c.name.toLowerCase().includes(lower) ||
+        c.phone?.toLowerCase().includes(lower),
+    );
+  }, [customers, searchText]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+        setSearchText("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
+  function handleOpen() {
+    if (disabled) return;
+    setSearchText("");
+    setIsOpen(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  }
+
+  function handleSelect(id: string) {
+    onChange(id);
+    setIsOpen(false);
+    setSearchText("");
+  }
+
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setSearchText(e.target.value);
+    if (!isOpen) setIsOpen(true);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Escape") {
+      setIsOpen(false);
+      setSearchText("");
+    }
+    if (e.key === "Enter" && filtered.length === 1) {
+      e.preventDefault();
+      handleSelect(filtered[0].id);
+    }
+  }
+
+  return (
+    <div ref={containerRef} className={cn("relative", className)}>
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
+        <input
+          ref={inputRef}
+          type="text"
+          autoComplete="off"
+          disabled={disabled}
+          placeholder={isOpen ? "Pesquisar por nome ou telefone…" : placeholder}
+          value={isOpen ? searchText : (selectedCustomer?.name ?? "")}
+          onChange={handleInputChange}
+          onFocus={handleOpen}
+          onKeyDown={handleKeyDown}
+          className={cn(
+            "flex h-11 w-full rounded-2xl border border-[var(--border-strong)] bg-white/80 pl-9 pr-4 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] transition focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:rgba(31,90,70,0.12)]",
+            disabled && "cursor-not-allowed opacity-50",
+            isOpen && "border-[var(--accent)] ring-2 ring-[color:rgba(31,90,70,0.12)]",
+            selectedCustomer && !isOpen && "font-medium",
+          )}
+        />
+        {selectedCustomer && !isOpen && (
+          <button
+            type="button"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onChange("");
+              setSearchText("");
+            }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-[var(--muted-foreground)] transition hover:text-[var(--foreground)]"
+            tabIndex={-1}
+            aria-label="Remover cliente"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 max-h-56 overflow-y-auto rounded-2xl border border-[var(--border-strong)] bg-[var(--panel-strong)] shadow-lg animate-slide-down">
+          {filtered.length === 0 ? (
+            <p className="px-4 py-3 text-sm text-[var(--muted-foreground)]">
+              Nenhum cliente encontrado.
+            </p>
+          ) : (
+            filtered.map((customer) => (
+              <button
+                key={customer.id}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleSelect(customer.id);
+                }}
+                className={cn(
+                  "flex w-full flex-col gap-0.5 px-4 py-3 text-left transition hover:bg-[var(--panel)]",
+                  customer.id === value && "bg-accent/5",
+                )}
+              >
+                <span
+                  className={cn(
+                    "text-sm font-medium text-[var(--foreground)]",
+                    customer.id === value && "text-accent",
+                  )}
+                >
+                  {customer.name}
+                </span>
+                {customer.phone && (
+                  <span className="text-xs text-[var(--muted-foreground)]">
+                    {customer.phone}
+                  </span>
+                )}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function SaleForm({
   branches,
   defaultBranchId,
-  customerId,
+  walkInCustomerId,
+  customers,
   products,
+  showCustomerPicker = false,
 }: {
   branches: BranchOption[];
   defaultBranchId: string;
-  customerId: string;
+  walkInCustomerId: string;
+  customers: CustomerOption[];
   products: ProductOption[];
+  showCustomerPicker?: boolean;
 }) {
   const router = useRouter();
+  const fiadoCustomers = useMemo(
+    () => customers.filter((customer) => !customer.isWalkIn),
+    [customers],
+  );
   const [error, setError] = useState<string | null>(null);
   const [branchId, setBranchId] = useState(defaultBranchId);
   const [productId, setProductId] = useState(products[0]?.id ?? "");
   const [quantity, setQuantity] = useState<number | "">("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [dueDate, setDueDate] = useState(defaultDueDateIso);
+  const [useCustomSoldAt, setUseCustomSoldAt] = useState(false);
+  const [soldAt, setSoldAt] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [branchStockByProduct, setBranchStockByProduct] = useState<Record<string, number>>(
+    {},
+  );
   const [saleTotal, setSaleTotal] = useState("");
   const [useDiscount, setUseDiscount] = useState(false);
   const [discountAmount, setDiscountAmount] = useState("");
+
+  const isCredit = paymentMethod === PaymentMethod.CREDIT;
 
   const branchOptions = useMemo(
     () =>
@@ -67,17 +251,79 @@ export function SaleForm({
 
   const productOptions = useMemo(
     () =>
-      products.map((product) => ({
-        value: product.id,
-        label: `${product.name} (${product.stockQuantity} un.)`,
-      })),
-    [products],
+      products.map((product) => {
+        const branchQty = branchStockByProduct[product.id];
+        const stockLabel =
+          branchQty === undefined ? "…" : `${branchQty} un. nesta unidade`;
+        return {
+          value: product.id,
+          label: `${product.name} (${stockLabel})`,
+        };
+      }),
+    [products, branchStockByProduct],
   );
 
-  const paymentOptions = useMemo(
-    () => PAYMENT_METHOD_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
-    [],
-  );
+  useEffect(() => {
+    if (!branchId) {
+      setBranchStockByProduct({});
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadBranchStock() {
+      try {
+        const response = await fetch(
+          `/api/inventory/branch-stock?branchId=${encodeURIComponent(branchId)}`,
+        );
+        if (!response.ok || cancelled) return;
+        const data = (await response.json()) as {
+          stockByProduct?: Record<string, number>;
+        };
+        if (!cancelled) {
+          setBranchStockByProduct(data.stockByProduct ?? {});
+        }
+      } catch {
+        if (!cancelled) {
+          setBranchStockByProduct({});
+        }
+      }
+    }
+
+    void loadBranchStock();
+    return () => {
+      cancelled = true;
+    };
+  }, [branchId]);
+
+  const paymentOptions = useMemo(() => {
+    const options = [...BASE_PAYMENT_METHOD_OPTIONS];
+    if (SHOW_RECEIVABLES_MODULE_UI) {
+      options.push({ value: PaymentMethod.CREDIT, label: "Fiado" });
+    }
+    return options.map((option) => ({ value: option.value, label: option.label }));
+  }, []);
+
+  const customerOptions = useMemo(() => {
+    const pool = isCredit
+      ? fiadoCustomers
+      : customers.filter((customer) => !customer.isWalkIn);
+    return pool.map((customer) => ({
+      value: customer.id,
+      label: customer.name,
+    }));
+  }, [customers, fiadoCustomers, isCredit]);
+
+  const effectiveCustomerId = isCredit
+    ? selectedCustomerId
+    : selectedCustomerId || walkInCustomerId;
+
+  function handlePaymentMethodChange(value: PaymentMethod) {
+    setPaymentMethod(value);
+    if (value !== PaymentMethod.CREDIT) {
+      setSelectedCustomerId("");
+    }
+  }
 
   const currentProduct = products.find((product) => product.id === productId);
   const parsedQuantity = quantity === "" ? 0 : Number(quantity);
@@ -129,6 +375,14 @@ export function SaleForm({
     }
   }, [productId, catalogTotal, useDiscount]);
 
+  useEffect(() => {
+    if (!isCredit) return;
+    if (fiadoCustomers.length === 0) return;
+    if (!fiadoCustomers.some((c) => c.id === selectedCustomerId)) {
+      setSelectedCustomerId(fiadoCustomers[0].id);
+    }
+  }, [isCredit, fiadoCustomers, selectedCustomerId]);
+
   function handleDiscountChange(value: string) {
     setDiscountAmount(value);
   }
@@ -157,8 +411,27 @@ export function SaleForm({
       return;
     }
 
-    if (!customerId) {
+    if (isCredit) {
+      if (fiadoCustomers.length === 0) {
+        setError("Cadastre um cliente antes de registrar venda fiado.");
+        return;
+      }
+      if (!selectedCustomerId) {
+        setError("Selecione o cliente para venda fiado.");
+        return;
+      }
+    } else if (!walkInCustomerId) {
       setError("Cliente padrão de venda não configurado.");
+      return;
+    }
+
+    if (isCredit && !dueDate) {
+      setError("Informe a data de vencimento do fiado.");
+      return;
+    }
+
+    if (useCustomSoldAt && !soldAt) {
+      setError("Informe a data da venda.");
       return;
     }
 
@@ -184,8 +457,11 @@ export function SaleForm({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         branchId,
-        customerId,
+        customerId: effectiveCustomerId,
         paymentMethod,
+        dueDate: isCredit ? dueDate : undefined,
+        useCustomSoldAt,
+        soldAt: useCustomSoldAt ? soldAt : undefined,
         applyDiscount: useDiscount,
         discount: useDiscount ? parsedDiscount : 0,
         items: [{ productId, quantity: parsedQuantity, unitPrice }],
@@ -204,15 +480,20 @@ export function SaleForm({
     setSaleTotal("");
     setUseDiscount(false);
     setDiscountAmount("");
+    setUseCustomSoldAt(false);
+    setSoldAt(format(new Date(), "yyyy-MM-dd"));
     router.refresh();
   }
+
+  const branchStockForProduct = productId ? (branchStockByProduct[productId] ?? 0) : 0;
 
   return (
     <Card>
       <div className="mb-5">
         <h3 className="text-lg font-semibold text-[var(--foreground)]">Registrar venda</h3>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-          Vendas à vista com valor ajustável. Para vender abaixo do preço do sistema, marque a opção de desconto.
+          Vendas à vista ou fiado com valor ajustável. Fiado gera automaticamente um título em Contas a
+          receber. Para vender abaixo do preço do sistema, marque a opção de desconto.
         </p>
       </div>
 
@@ -262,11 +543,87 @@ export function SaleForm({
           <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">Forma de pagamento</label>
           <DropdownSelect
             value={paymentMethod}
-            onChange={(value) => setPaymentMethod(value as PaymentMethod)}
+            onChange={(value) => handlePaymentMethodChange(value as PaymentMethod)}
             options={paymentOptions}
             placeholder="Selecione a forma de pagamento"
           />
         </div>
+
+        {(showCustomerPicker || isCredit) && (
+          <div className={cn(isCredit ? "" : "md:col-span-2")}>
+            <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
+              Cliente
+              {!isCredit ? (
+                <span className="ml-1 font-normal text-[var(--muted-foreground)]">
+                  (opcional)
+                </span>
+              ) : null}
+            </label>
+            <CustomerSearchInput
+              customers={isCredit ? fiadoCustomers : customers.filter((c) => !c.isWalkIn)}
+              value={selectedCustomerId}
+              onChange={setSelectedCustomerId}
+              placeholder={
+                isCredit
+                  ? fiadoCustomers.length === 0
+                    ? "Nenhum cliente cadastrado"
+                    : "Selecione o cliente"
+                  : "Venda avulsa se não informar"
+              }
+              disabled={isCredit && fiadoCustomers.length === 0}
+            />
+          </div>
+        )}
+
+        {isCredit ? (
+          <div>
+            <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
+              Vencimento do fiado
+            </label>
+            <DatePicker
+              value={dueDate}
+              onChange={setDueDate}
+              min={format(new Date(), "yyyy-MM-dd")}
+              placeholder="Selecione a data de vencimento"
+            />
+          </div>
+        ) : null}
+
+        <div className="md:col-span-2 flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--panel-strong)] px-4 py-3">
+          <input
+            type="checkbox"
+            id="useCustomSoldAt"
+            className="h-4 w-4 rounded border-[var(--border-strong)] accent-[var(--accent)]"
+            checked={useCustomSoldAt}
+            onChange={(e) => setUseCustomSoldAt(e.target.checked)}
+          />
+          <label htmlFor="useCustomSoldAt" className="text-sm text-[var(--foreground)]">
+            Informar data da venda (retroativa ou outro dia)
+          </label>
+        </div>
+
+        {useCustomSoldAt ? (
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
+              Data da venda
+            </label>
+            <DatePicker
+              value={soldAt}
+              onChange={setSoldAt}
+              max={format(startOfToday(), "yyyy-MM-dd")}
+              placeholder="Selecione a data da venda"
+            />
+          </div>
+        ) : null}
+
+        {productId && branchId ? (
+          <p className="md:col-span-2 text-xs text-[var(--muted-foreground)]">
+            Estoque na unidade selecionada:{" "}
+            <span className="font-medium text-[var(--foreground)]">
+              {branchStockForProduct} un.
+            </span>
+          </p>
+        ) : null}
 
         <div className="md:col-span-2 flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--panel-strong)] px-4 py-3">
           <input
@@ -341,7 +698,12 @@ export function SaleForm({
         <div className="md:col-span-2">
           <Button
             type="submit"
-            disabled={branches.length === 0 || !branchId || !!priceError}
+            disabled={
+              branches.length === 0 ||
+              !branchId ||
+              !!priceError ||
+              (isCredit && fiadoCustomers.length === 0)
+            }
           >
             Registrar venda
           </Button>

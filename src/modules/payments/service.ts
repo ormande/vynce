@@ -2,12 +2,15 @@ import { Prisma, ReceivableStatus, SalePaymentStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
-import { listReceivables } from "@/modules/payments/repository";
+import {
+  listReceivables,
+  listReceivablesForPayment,
+} from "@/modules/payments/repository";
 import { paymentSchema } from "@/modules/payments/schemas";
 
-export async function getReceivables(search?: string) {
-  const receivables = await listReceivables(search);
-
+function mapReceivableFlags(
+  receivables: Awaited<ReturnType<typeof listReceivables>>,
+) {
   return receivables.map((receivable) => ({
     ...receivable,
     isOverdue:
@@ -18,6 +21,16 @@ export async function getReceivables(search?: string) {
       new Date(receivable.dueDate).getTime() - Date.now() <=
         1000 * 60 * 60 * 24 * 3,
   }));
+}
+
+export async function getReceivables(search?: string) {
+  const receivables = await listReceivables(search);
+  return mapReceivableFlags(receivables);
+}
+
+export async function getReceivablesForPayment(search?: string) {
+  const receivables = await listReceivablesForPayment(search);
+  return mapReceivableFlags(receivables);
 }
 
 export async function registerPayment(input: unknown, createdById?: string) {
@@ -31,6 +44,13 @@ export async function registerPayment(input: unknown, createdById?: string) {
 
     if (!receivable) {
       throw new AppError("Recebível não encontrado.", 404);
+    }
+
+    if (
+      receivable.status === ReceivableStatus.PAID ||
+      Number(receivable.balanceDue) <= 0
+    ) {
+      throw new AppError("Este recebível já está quitado.", 400);
     }
 
     const nextPaid = Number(receivable.paidAmount) + data.amount;

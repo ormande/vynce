@@ -1,13 +1,12 @@
 import { auth } from "@/lib/auth";
 import { withErrorHandling } from "@/lib/api";
+import { permissionCatalog } from "@/lib/permissions";
+import { requireApiPermission } from "@/lib/session-permissions";
 import { getSales, registerSale } from "@/modules/sales/service";
 
 export async function GET(request: Request) {
   return withErrorHandling(async () => {
-    const session = await auth();
-    if (!session?.user) {
-      throw new Error("Não autenticado.");
-    }
+    const session = requireApiPermission(await auth(), permissionCatalog.salesRead);
     const branchIds =
       session.user.roleSlug === "seller" && !session.user.accessAll
         ? session.user.branchIds
@@ -19,10 +18,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   return withErrorHandling(async () => {
-    const session = await auth();
-    if (!session?.user) {
-      throw new Error("Não autenticado.");
-    }
+    const session = requireApiPermission(await auth(), permissionCatalog.salesWrite);
 
     const body = await request.json();
     const sale = await registerSale(body, session.user.id, {

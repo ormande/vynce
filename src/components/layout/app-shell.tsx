@@ -2,8 +2,10 @@ import { type ReactNode } from "react";
 
 import { AppHeader } from "@/components/layout/app-header";
 import { AppSidebar } from "@/components/layout/app-sidebar";
+import { PageTransitionWrapper } from "@/components/layout/page-transition-wrapper";
 import { auth } from "@/lib/auth";
 import { getNotificationCount } from "@/modules/notifications/service";
+import { getPlatformSettings } from "@/modules/platform-settings/service";
 
 export async function AppShell({
   title,
@@ -20,20 +22,25 @@ export async function AppShell({
 
   let transferBadgeCount = 0;
   let notificationCount = 0;
+  const platformSettings = await getPlatformSettings();
+  const singleUnitMode = platformSettings.singleUnitMode;
 
   if (session?.user) {
-    const { getUnseenPendingTransfersCount } = await import(
-      "@/modules/transfers/service"
-    );
-    transferBadgeCount = await getUnseenPendingTransfersCount(
-      session.user.id,
-      session.user.branchIds ?? [],
-    );
+    if (!singleUnitMode) {
+      const { getUnseenPendingTransfersCount } = await import(
+        "@/modules/transfers/service"
+      );
+      transferBadgeCount = await getUnseenPendingTransfersCount(
+        session.user.id,
+        session.user.branchIds ?? [],
+      );
+    }
     notificationCount = await getNotificationCount({
       userId: session.user.id,
       roleSlug: session.user.roleSlug,
       branchIds: session.user.branchIds ?? [],
       accessAll: session.user.accessAll ?? false,
+      singleUnitMode,
     });
   }
 
@@ -44,6 +51,7 @@ export async function AppShell({
           pathname={pathname}
           roleSlug={session?.user?.roleSlug}
           transferBadgeCount={transferBadgeCount}
+          singleUnitMode={singleUnitMode}
         />
       </div>
 
@@ -61,7 +69,7 @@ export async function AppShell({
                 : "Equipe"
           }
         />
-        <div className="mt-8">{children}</div>
+        <PageTransitionWrapper>{children}</PageTransitionWrapper>
       </main>
     </div>
   );

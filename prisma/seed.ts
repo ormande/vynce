@@ -26,6 +26,12 @@ const permissionKeys = [
 ] as const;
 
 async function main() {
+  await prisma.platformSettings.upsert({
+    where: { id: "default" },
+    update: {},
+    create: { id: "default", allowSalesWithoutStock: false, singleUnitMode: false },
+  });
+
   for (const [key, name] of permissionKeys) {
     await prisma.permission.upsert({
       where: { key },

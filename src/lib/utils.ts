@@ -61,6 +61,14 @@ const SALE_PAYMENT_STATUS_LABELS: Record<string, string> = {
   OVERDUE: "Atrasado",
 };
 
+const RECEIVABLE_STATUS_LABELS: Record<string, string> = {
+  OPEN: "Em aberto",
+  PARTIAL: "Parcial",
+  PAID: "Quitado",
+  OVERDUE: "Vencido",
+  CANCELLED: "Cancelado",
+};
+
 export function formatPaymentMethod(method: string) {
   return PAYMENT_METHOD_LABELS[method] ?? method;
 }
@@ -69,8 +77,55 @@ export function formatSalePaymentStatus(status: string) {
   return SALE_PAYMENT_STATUS_LABELS[status] ?? status;
 }
 
+export function formatReceivableStatus(status: string) {
+  return RECEIVABLE_STATUS_LABELS[status] ?? status;
+}
+
 export function parseCurrencyInput(value: string) {
   const normalized = value.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/** Remove tudo que não for dígito (útil antes de salvar telefone/CPF). */
+export function onlyDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+/** Máscara dinâmica: (xx) xxxx-xxxx (10 dígitos) ou (xx) xxxxx-xxxx (11 dígitos). */
+export function formatPhoneMask(value: string) {
+  const digits = onlyDigits(value).slice(0, 11);
+  if (!digits.length) return "";
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
+/** Máscara: xxx.xxx.xxx-xx */
+export function formatCpfMask(value: string) {
+  const digits = onlyDigits(value).slice(0, 11);
+  if (!digits.length) return "";
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  if (digits.length <= 9) {
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  }
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+}
+
+export function formatPhoneDisplay(value: string | null | undefined) {
+  if (!value) return "—";
+  const digits = onlyDigits(value);
+  if (digits.length < 10) return value;
+  return formatPhoneMask(digits);
+}
+
+export function formatCpfDisplay(value: string | null | undefined) {
+  if (!value) return "—";
+  const digits = onlyDigits(value);
+  if (digits.length !== 11) return value;
+  return formatCpfMask(digits);
 }

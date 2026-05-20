@@ -1,15 +1,49 @@
+import { LayoutDashboard } from "lucide-react";
+
 import { AppShell } from "@/components/layout/app-shell";
 import { SalesOverviewChart } from "@/components/charts/sales-overview-chart";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
+import { SetupEmptyState } from "@/components/ui/setup-empty-state";
+import { resolveSetupBlock } from "@/lib/setup-blocks";
 import { SHOW_CUSTOMERS_MODULE_UI } from "@/lib/platform-config";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { getDashboardMetrics } from "@/modules/dashboard/service";
+import { getPlatformSettings } from "@/modules/platform-settings/service";
+import { getSetupSnapshot } from "@/modules/setup/service";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const [snapshot, settings] = await Promise.all([
+    getSetupSnapshot(),
+    getPlatformSettings(),
+  ]);
+  const setupBlock = resolveSetupBlock("dashboard", snapshot, {
+    singleUnitMode: settings.singleUnitMode,
+  });
+
+  if (setupBlock) {
+    return (
+      <AppShell
+        title="Dashboard"
+        subtitle="Configure o básico do negócio para liberar indicadores e gráficos."
+        pathname="/dashboard"
+      >
+        <SetupEmptyState
+          block={setupBlock}
+          icon={LayoutDashboard}
+          steps={[
+            { label: "Cadastrar unidade", done: snapshot.hasBranches },
+            { label: "Criar categorias de produtos", done: snapshot.hasCategories },
+            { label: "Cadastrar produtos no catálogo", done: snapshot.hasProducts },
+          ]}
+        />
+      </AppShell>
+    );
+  }
+
   const dashboard = await getDashboardMetrics();
 
   return (

@@ -19,7 +19,8 @@ import {
 } from "@/lib/platform-config";
 import { cn } from "@/lib/utils";
 
-const ownerNavItems = [
+function buildOwnerNavItems(singleUnitMode: boolean) {
+  return [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   ...(SHOW_CUSTOMERS_MODULE_UI
     ? [{ href: "/customers" as const, label: "Clientes", icon: Users }]
@@ -28,31 +29,43 @@ const ownerNavItems = [
   { href: "/branches", label: "Unidades", icon: Building2 },
   { href: "/sellers", label: "Funcionários", icon: Users },
   { href: "/inventory", label: "Estoque", icon: Boxes },
-  { href: "/transfers", label: "Transferências", icon: ArrowLeftRight },
+  ...(!singleUnitMode
+    ? [{ href: "/transfers" as const, label: "Transferências", icon: ArrowLeftRight }]
+    : []),
   { href: "/sales", label: "Vendas", icon: Receipt },
   ...(SHOW_RECEIVABLES_MODULE_UI
-    ? [{ href: "/receivables" as const, label: "Recebíveis", icon: CreditCard }]
+    ? [{ href: "/receivables" as const, label: "Contas a receber", icon: CreditCard }]
     : []),
   { href: "/reports", label: "Relatórios", icon: BarChart3 },
   { href: "/settings", label: "Configurações", icon: Settings },
 ];
+}
 
-const sellerNavItems = [
+function buildSellerNavItems(singleUnitMode: boolean) {
+  return [
   { href: "/sales", label: "Vendas", icon: Receipt },
   { href: "/inventory", label: "Estoque", icon: Boxes },
-  { href: "/transfers", label: "Transferências", icon: ArrowLeftRight },
+  ...(!singleUnitMode
+    ? [{ href: "/transfers" as const, label: "Transferências", icon: ArrowLeftRight }]
+    : []),
 ];
+}
 
 export function AppSidebar({
   pathname,
   roleSlug,
   transferBadgeCount = 0,
+  singleUnitMode = false,
 }: {
   pathname: string;
   roleSlug?: string | null;
   transferBadgeCount?: number;
+  singleUnitMode?: boolean;
 }) {
-  const items = roleSlug === "seller" ? sellerNavItems : ownerNavItems;
+  const items =
+    roleSlug === "seller"
+      ? buildSellerNavItems(singleUnitMode)
+      : buildOwnerNavItems(singleUnitMode);
 
   return (
     <aside className="w-full max-w-xs rounded-[32px] border border-white/55 bg-[rgba(18,30,27,0.92)] p-4 text-white shadow-[0_30px_80px_rgba(16,24,40,0.22)]">

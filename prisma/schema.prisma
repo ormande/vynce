@@ -138,6 +138,13 @@ model UserPermission {
   @@unique([userId, permissionId])
 }
 
+model PlatformSettings {
+  id                     String   @id @default("default")
+  allowSalesWithoutStock Boolean  @default(false)
+  singleUnitMode         Boolean  @default(false)
+  updatedAt              DateTime @updatedAt
+}
+
 model Branch {
   id              String                 @id @default(cuid())
   name            String

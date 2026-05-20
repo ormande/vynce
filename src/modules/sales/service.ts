@@ -1,12 +1,34 @@
-import { Prisma, SalePaymentStatus } from "@prisma/client";
+import {
+  PaymentMethod,
+  Prisma,
+  ReceivableStatus,
+  SalePaymentStatus,
+} from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
+import {
+  applyBranchStockDelta,
+  getBranchStockQuantity,
+} from "@/lib/stock-ledger";
+import { WALK_IN_SALE_CUSTOMER_PHONE } from "@/modules/customers/repository";
+import { getPlatformSettings } from "@/modules/platform-settings/service";
 import { listSales } from "@/modules/sales/repository";
 import { saleSchema } from "@/modules/sales/schemas";
 
 export async function getSales(search?: string, branchIds?: string[]) {
   return listSales(search, branchIds);
+}
+
+function resolveSoldAt(data: { useCustomSoldAt: boolean; soldAt?: string }) {
+  if (data.useCustomSoldAt && data.soldAt) {
+    const parsed = new Date(`${data.soldAt}T12:00:00`);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new AppError("Data da venda inválida.", 400);
+    }
+    return parsed;
+  }
+  return new Date();
 }
 
 export async function registerSale(
@@ -15,6 +37,7 @@ export async function registerSale(
   options?: { roleSlug?: string; branchIds?: string[] },
 ) {
   const data = saleSchema.parse(input);
+  const { allowSalesWithoutStock } = await getPlatformSettings();
 
   if (
     options?.roleSlug === "seller" &&
@@ -115,24 +138,46 @@ export async function registerSale(
 
   const discount = data.applyDiscount ? computedDiscount : 0;
   const total = subtotal;
-  const soldAt = new Date();
+  const soldAt = resolveSoldAt(data);
+  const isCredit = data.paymentMethod === PaymentMethod.CREDIT;
+
+  const customer = await db.customer.findUnique({
+    where: { id: data.customerId },
+    select: { id: true, phone: true, name: true },
+  });
+
+  if (!customer) {
+    throw new AppError("Cliente não encontrado.", 404);
+  }
+
+  if (isCredit && customer.phone === WALK_IN_SALE_CUSTOMER_PHONE) {
+    throw new AppError(
+      "Selecione um cliente cadastrado para registrar venda fiado.",
+      400,
+    );
+  }
+
+  const dueDate = isCredit
+    ? (() => {
+        const parsed = new Date(`${data.dueDate}T12:00:00`);
+        if (Number.isNaN(parsed.getTime())) {
+          throw new AppError("Data de vencimento inválida.", 400);
+        }
+        return parsed;
+      })()
+    : undefined;
 
   return db.$transaction(async (tx) => {
-    for (const [productId, needQty] of neededByProduct) {
-      const product = productMap.get(productId)!;
-      const row = await tx.branchStock.findUnique({
-        where: {
-          branchId_productId: {
-            branchId: data.branchId,
-            productId,
-          },
-        },
-      });
-      if (!row || row.quantity < needQty) {
-        throw new AppError(
-          `Estoque insuficiente na unidade para ${product.name}.`,
-          400,
-        );
+    if (!allowSalesWithoutStock) {
+      for (const [productId, needQty] of neededByProduct) {
+        const product = productMap.get(productId)!;
+        const available = await getBranchStockQuantity(tx, data.branchId, productId);
+        if (available < needQty) {
+          throw new AppError(
+            `Estoque insuficiente na unidade para ${product.name} (${available} disponível).`,
+            400,
+          );
+        }
       }
     }
 
@@ -143,11 +188,12 @@ export async function registerSale(
         customerId: data.customerId,
         sellerId,
         paymentMethod: data.paymentMethod,
-        paymentStatus: SalePaymentStatus.PAID,
+        paymentStatus: isCredit ? SalePaymentStatus.PENDING : SalePaymentStatus.PAID,
         subtotal: new Prisma.Decimal(subtotal),
         discount: new Prisma.Decimal(discount),
         total: new Prisma.Decimal(total),
         soldAt,
+        dueDate,
         notes: data.notes || undefined,
         items: {
           create: items.map((item) => ({
@@ -158,70 +204,52 @@ export async function registerSale(
             total: new Prisma.Decimal(item.total),
           })),
         },
+        ...(isCredit
+          ? {
+              receivable: {
+                create: {
+                  customerId: data.customerId,
+                  status: ReceivableStatus.OPEN,
+                  originalAmount: new Prisma.Decimal(total),
+                  paidAmount: new Prisma.Decimal(0),
+                  balanceDue: new Prisma.Decimal(total),
+                  dueDate: dueDate!,
+                },
+              },
+            }
+          : {}),
       },
       include: {
         items: true,
+        receivable: true,
       },
     });
 
-    for (const item of items) {
-      const productBefore = await tx.product.findUniqueOrThrow({
-        where: { id: item.product.id },
-      });
-      const branchRow = await tx.branchStock.findUniqueOrThrow({
-        where: {
-          branchId_productId: {
-            branchId: data.branchId,
-            productId: item.product.id,
-          },
-        },
-      });
-
-      if (branchRow.quantity < item.quantity) {
-        throw new AppError(
-          `Estoque insuficiente na unidade para ${item.product.name}.`,
-          400,
-        );
-      }
-
-      const newBranchQty = branchRow.quantity - item.quantity;
-      const previousStock = productBefore.stockQuantity;
-      const newProductStock = previousStock - item.quantity;
-
-      await tx.branchStock.update({
-        where: { id: branchRow.id },
-        data: { quantity: newBranchQty },
-      });
-
-      await tx.product.update({
-        where: { id: item.product.id },
-        data: { stockQuantity: newProductStock },
-      });
-
-      await tx.inventoryMovement.create({
-        data: {
-          productId: item.product.id,
+    if (!allowSalesWithoutStock) {
+      for (const item of items) {
+        await applyBranchStockDelta(tx, {
           branchId: data.branchId,
-          performedById: sellerId,
+          productId: item.product.id,
+          delta: -item.quantity,
           type: "SALE",
-          quantity: item.quantity,
-          previousStock,
-          currentStock: newProductStock,
+          performedById: sellerId,
           note: `Venda ${sale.id} (${branch.name})`,
+        });
+      }
+    }
+
+    if (!isCredit) {
+      await tx.payment.create({
+        data: {
+          customerId: data.customerId,
+          saleId: sale.id,
+          createdById: sellerId,
+          amount: new Prisma.Decimal(total),
+          method: data.paymentMethod,
+          receivedAt: soldAt,
         },
       });
     }
-
-    await tx.payment.create({
-      data: {
-        customerId: data.customerId,
-        saleId: sale.id,
-        createdById: sellerId,
-        amount: new Prisma.Decimal(total),
-        method: data.paymentMethod,
-        receivedAt: soldAt,
-      },
-    });
 
     return sale;
   });

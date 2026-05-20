@@ -1,13 +1,19 @@
 import { redirect } from "next/navigation";
 import { CreditCard } from "lucide-react";
-import { PaymentForm } from "@/components/forms/payment-form";
+
+import { ReceivablesPageContent } from "@/components/receivables/receivables-page-content";
 import { AppShell } from "@/components/layout/app-shell";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Table } from "@/components/ui/table";
+import { SetupEmptyState } from "@/components/ui/setup-empty-state";
+import { resolveSetupBlock } from "@/lib/setup-blocks";
+import { requirePermission } from "@/lib/auth-guards";
 import { SHOW_RECEIVABLES_MODULE_UI } from "@/lib/platform-config";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { getReceivables } from "@/modules/payments/service";
+import { permissionCatalog } from "@/lib/permissions";
+import {
+  getReceivables,
+  getReceivablesForPayment,
+} from "@/modules/payments/service";
+import { getPlatformSettings } from "@/modules/platform-settings/service";
+import { getSetupSnapshot } from "@/modules/setup/service";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +22,30 @@ export default async function ReceivablesPage() {
     redirect("/dashboard");
   }
 
-  const receivables = await getReceivables();
+  await requirePermission(permissionCatalog.receivablesRead);
+
+  const [snapshot, settings, receivables, receivablesForPayment] = await Promise.all([
+    getSetupSnapshot(),
+    getPlatformSettings(),
+    getReceivables(),
+    getReceivablesForPayment(),
+  ]);
+
+  const setupBlock = resolveSetupBlock("receivables", snapshot, {
+    singleUnitMode: settings.singleUnitMode,
+  });
+
+  const mapRow = (receivable: (typeof receivables)[number]) => ({
+    id: receivable.id,
+    customer: receivable.customer,
+    balanceDue: receivable.balanceDue.toString(),
+    customerId: receivable.customerId,
+    saleId: receivable.saleId,
+    dueDate: receivable.dueDate,
+    status: receivable.status,
+    isOverdue: receivable.isOverdue,
+    dueSoon: receivable.dueSoon,
+  });
 
   return (
     <AppShell
@@ -24,79 +53,14 @@ export default async function ReceivablesPage() {
       subtitle="Acompanhamento de vencimentos, pendências e registro de pagamentos recebidos."
       pathname="/receivables"
     >
-      <div className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
-        <PaymentForm
-          receivables={receivables.map((receivable) => ({
-            id: receivable.id,
-            customer: receivable.customer,
-            balanceDue: receivable.balanceDue.toString(),
-            customerId: receivable.customerId,
-            saleId: receivable.saleId,
-          }))}
+      {setupBlock ? (
+        <SetupEmptyState block={setupBlock} icon={CreditCard} />
+      ) : (
+        <ReceivablesPageContent
+          receivables={receivables.map(mapRow)}
+          receivablesForPayment={receivablesForPayment.map(mapRow)}
         />
-        <Card>
-          <h3 className="text-xl font-semibold text-[var(--foreground)]">
-            Pendências e recebimentos
-          </h3>
-          <Table className="mt-4">
-            <thead>
-              <tr className="text-left text-sm text-[var(--muted-foreground)]">
-                <th className="px-4 py-2">Cliente</th>
-                <th className="px-4 py-2">Vencimento</th>
-                <th className="px-4 py-2">Status</th>
-                <th className="px-4 py-2">Saldo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {receivables.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="py-12 text-center text-sm text-[var(--muted-foreground)]">
-                    <div className="flex flex-col items-center justify-center">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--panel-strong)] mb-3">
-                        <CreditCard className="h-6 w-6 opacity-40" />
-                      </div>
-                      <p>Nenhum recebível encontrado.</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                receivables.map((receivable) => (
-                  <tr key={receivable.id} className="rounded-3xl bg-[var(--panel-strong)]">
-                    <td className="rounded-l-3xl px-4 py-4 font-medium text-[var(--foreground)]">
-                      {receivable.customer.name}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-[var(--muted-foreground)]">
-                      {formatDate(receivable.dueDate)}
-                    </td>
-                    <td className="px-4 py-4">
-                      <Badge
-                        tone={
-                          receivable.isOverdue
-                            ? "danger"
-                            : receivable.dueSoon
-                              ? "warning"
-                              : receivable.status === "PAID"
-                                ? "success"
-                                : "neutral"
-                        }
-                      >
-                        {receivable.isOverdue
-                          ? "Vencido"
-                          : receivable.dueSoon
-                            ? "Próximo"
-                            : receivable.status}
-                      </Badge>
-                    </td>
-                    <td className="rounded-r-3xl px-4 py-4 font-medium text-[var(--foreground)]">
-                      {formatCurrency(receivable.balanceDue.toString())}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </Table>
-        </Card>
-      </div>
+      )}
     </AppShell>
   );
 }

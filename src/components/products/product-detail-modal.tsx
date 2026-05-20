@@ -48,14 +48,14 @@ export function ProductDetailModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/65 p-4 backdrop-blur-md"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/65 p-4 backdrop-blur-md animate-overlay-in"
       role="presentation"
       onClick={onClose}
     >
       <div
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-[28px] border border-white/20 bg-[var(--panel-strong)] p-6 shadow-[0_40px_100px_rgba(0,0,0,0.35)]"
+        className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-[28px] border border-white/20 bg-[var(--panel-strong)] p-6 shadow-[0_40px_100px_rgba(0,0,0,0.35)] animate-modal-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">

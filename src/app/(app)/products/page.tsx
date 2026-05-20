@@ -1,6 +1,8 @@
-import { Plus, ChevronLeft, ChevronRight, PackageSearch, ArrowLeftRight } from "lucide-react";
+import { Package } from "lucide-react";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { SetupEmptyState } from "@/components/ui/setup-empty-state";
+import { resolveSetupBlock } from "@/lib/setup-blocks";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ui/action-button";
@@ -8,6 +10,8 @@ import { Card } from "@/components/ui/card";
 import { Table } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 import { getProducts, getActiveCategories } from "@/modules/products/service";
+import { getPlatformSettings } from "@/modules/platform-settings/service";
+import { getSetupSnapshot } from "@/modules/setup/service";
 import { auth } from "@/lib/auth";
 import { hasPermission, permissionCatalog } from "@/lib/permissions";
 import { ProductsPageContent } from "@/components/products/products-page-content";
@@ -29,7 +33,9 @@ export default async function ProductsPage({
   const page = parseInt(pageStr || "1", 10);
   const search = q?.trim() || undefined;
 
-  const [{ items: rawProducts, total, totalPages }, categories] = await Promise.all([
+  const [snapshot, settings, productsResult, categories] = await Promise.all([
+    getSetupSnapshot(),
+    getPlatformSettings(),
     getProducts({
       page,
       pageSize: 20,
@@ -38,6 +44,12 @@ export default async function ProductsPage({
     }),
     getActiveCategories(),
   ]);
+
+  const setupBlock = resolveSetupBlock("products", snapshot, {
+    singleUnitMode: settings.singleUnitMode,
+  });
+
+  const { items: rawProducts, total, totalPages } = productsResult;
 
   const products = rawProducts.map((p) => ({
     ...p,
@@ -52,6 +64,9 @@ export default async function ProductsPage({
       subtitle="Gestão centralizada de catálogo, categorias personalizáveis, preços e status operacional."
       pathname="/products"
     >
+      {setupBlock ? (
+        <SetupEmptyState block={setupBlock} icon={Package} />
+      ) : (
       <ProductsPageContent 
         products={products}
         categories={categories}
@@ -61,6 +76,7 @@ export default async function ProductsPage({
         canWrite={canWrite}
         roleSlug={session?.user.roleSlug}
       />
+      )}
     </AppShell>
   );
 }

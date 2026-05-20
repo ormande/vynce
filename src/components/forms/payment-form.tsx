@@ -63,10 +63,20 @@ export function PaymentForm({
   );
 
   useEffect(() => {
-    const receivable = receivables.find((item) => item.id === receivableId);
-    if (receivable) {
-      setAmount(toCurrencyInputValue(receivable.balanceDue));
+    if (receivables.length === 0) {
+      setReceivableId("");
+      setAmount("");
+      return;
     }
+
+    const current = receivables.find((item) => item.id === receivableId);
+    const receivable = current ?? receivables[0];
+
+    if (!current) {
+      setReceivableId(receivable.id);
+    }
+
+    setAmount(toCurrencyInputValue(receivable.balanceDue));
   }, [receivableId, receivables]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -120,7 +130,11 @@ export function PaymentForm({
             value={receivableId}
             onChange={setReceivableId}
             options={receivableOptions}
-            placeholder="Selecione o recebível"
+            placeholder={
+              receivableOptions.length === 0
+                ? "Nenhum título em aberto"
+                : "Selecione o recebível"
+            }
             disabled={receivableOptions.length === 0}
           />
         </div>

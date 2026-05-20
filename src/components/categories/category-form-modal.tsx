@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useAnimatedModal } from "@/lib/use-animated-modal";
 
 export type CategoryRow = {
   id: string;
@@ -29,6 +30,7 @@ export function CategoryFormModal({
   onSaved: () => void;
 }) {
   const [mounted, setMounted] = useState(false);
+  const { shouldRender, isClosing } = useAnimatedModal(isOpen);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
@@ -98,12 +100,12 @@ export function CategoryFormModal({
     }
   }
 
-  if (!isOpen || !mounted) return null;
+  if (!shouldRender || !mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/65 backdrop-blur-md">
+    <div className={`fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/65 backdrop-blur-md ${isClosing ? "animate-overlay-out" : "animate-overlay-in"}`}>
       <div className="absolute inset-0" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-[28px] border border-white/20 bg-[var(--panel-strong)] shadow-[0_40px_100px_rgba(0,0,0,0.35)] flex flex-col">
+      <div className={`relative w-full max-w-lg rounded-[28px] border border-white/20 bg-[var(--panel-strong)] shadow-[0_40px_100px_rgba(0,0,0,0.35)] flex flex-col ${isClosing ? "animate-modal-out" : "animate-modal-in"}`}>
         <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
           <div>
             <h3 className="text-xl font-semibold text-[var(--foreground)]">

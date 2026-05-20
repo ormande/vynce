@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, PackageSearch, Activity } from "lucide-react";
+import { useState } from "react";
+import { ChevronLeft, ChevronRight, PackageSearch, Activity, Plus } from "lucide-react";
 
+import { AddStockModal } from "@/components/inventory/add-stock-modal";
+import { ActionButton } from "@/components/ui/action-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -47,6 +50,9 @@ export function InventoryPageContent({
   movements,
   branches,
   currentBranch,
+  stockBranches,
+  products,
+  canAddStock,
 }: {
   items: InventoryItem[];
   total: number;
@@ -56,10 +62,20 @@ export function InventoryPageContent({
   movements: Movement[];
   branches: { id: string; name: string }[];
   currentBranch: string;
+  stockBranches: { id: string; name: string }[];
+  products: { id: string; name: string }[];
+  canAddStock: boolean;
 }) {
+  const [addStockOpen, setAddStockOpen] = useState(false);
+  const isBranchView = currentBranch !== "global";
+  const defaultBranchForStock = isBranchView
+    ? currentBranch
+    : (stockBranches[0]?.id ?? "");
+
   return (
     <div className="space-y-6">
-      <div className="flex space-x-2 overflow-x-auto border-b border-[var(--border)] pb-2">
+      <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 mb-2 gap-3">
+        <div className="flex space-x-2 overflow-x-auto">
         {branches.map((b) => (
           <Link
             key={b.id}
@@ -74,7 +90,25 @@ export function InventoryPageContent({
             {b.name}
           </Link>
         ))}
+        </div>
+        {canAddStock && stockBranches.length > 0 && products.length > 0 ? (
+          <ActionButton
+            icon={Plus}
+            onClick={() => setAddStockOpen(true)}
+            className="shrink-0"
+          >
+            Adicionar estoque
+          </ActionButton>
+        ) : null}
       </div>
+
+      <AddStockModal
+        isOpen={addStockOpen}
+        onClose={() => setAddStockOpen(false)}
+        branches={stockBranches}
+        products={products}
+        defaultBranchId={defaultBranchForStock}
+      />
 
       <div className="grid gap-6">
         {items.length === 0 ? (

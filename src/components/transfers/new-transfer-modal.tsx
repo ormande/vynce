@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { TransferRequestForm } from "./transfer-request-form";
+import { useAnimatedModal } from "@/lib/use-animated-modal";
 
 type BranchOpt = { id: string; name: string; isWarehouse: boolean };
 
@@ -19,6 +20,7 @@ export function NewTransferModal({
   branchesToPool: BranchOpt[];
 }) {
   const [mounted, setMounted] = useState(false);
+  const { shouldRender, isClosing } = useAnimatedModal(isOpen);
 
   useEffect(() => {
     setMounted(true);
@@ -31,13 +33,13 @@ export function NewTransferModal({
     };
   }, [isOpen]);
 
-  if (!isOpen || !mounted) return null;
+  if (!shouldRender || !mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/65 backdrop-blur-md">
+    <div className={`fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/65 backdrop-blur-md ${isClosing ? "animate-overlay-out" : "animate-overlay-in"}`}>
       <div className="absolute inset-0" onClick={onClose} />
 
-      <div className="relative w-full max-w-2xl rounded-[28px] border border-white/20 bg-[var(--panel-strong)] shadow-[0_40px_100px_rgba(0,0,0,0.35)] flex flex-col max-h-[90vh]">
+      <div className={`relative w-full max-w-2xl rounded-[28px] border border-white/20 bg-[var(--panel-strong)] shadow-[0_40px_100px_rgba(0,0,0,0.35)] flex flex-col max-h-[90vh] ${isClosing ? "animate-modal-out" : "animate-modal-in"}`}>
         <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
           <div>
             <h3 className="text-xl font-semibold text-[var(--foreground)]">Nova Transferência</h3>

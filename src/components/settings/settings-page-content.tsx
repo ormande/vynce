@@ -9,6 +9,7 @@ import {
 
 import { ActionButton } from "@/components/ui/action-button";
 import { Card } from "@/components/ui/card";
+import { PlatformPreferences } from "@/components/settings/platform-preferences";
 
 const sections = [
   {
@@ -51,46 +52,60 @@ const sections = [
     label: "Gestão de usuários",
     icon: UserCog,
   },
-  {
-    title: "Preferências do sistema",
-    description:
-      "Parâmetros globais, integrações e políticas comerciais estarão concentrados aqui conforme o produto evoluir.",
-    href: null,
-    label: null,
-    icon: Settings2,
-    comingSoon: true,
-  },
 ] as const;
 
-export function SettingsPageContent() {
+export function SettingsPageContent({
+  allowSalesWithoutStock,
+  singleUnitMode,
+}: {
+  allowSalesWithoutStock: boolean;
+  singleUnitMode: boolean;
+}) {
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {sections.map((section) => {
-        const Icon = section.icon;
+    <div className="space-y-8">
+      <PlatformPreferences
+        initialAllowSalesWithoutStock={allowSalesWithoutStock}
+        initialSingleUnitMode={singleUnitMode}
+      />
 
-        return (
-          <Card key={section.title} className="flex flex-col">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--panel-strong)] text-[var(--accent)]">
-              <Icon className="h-6 w-6" />
-            </div>
-            <h3 className="mt-5 text-xl font-semibold text-[var(--foreground)]">
-              {section.title}
-            </h3>
-            <p className="mt-3 flex-1 text-sm leading-7 text-[var(--muted-foreground)]">
-              {section.description}
+      <div>
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--panel-strong)] text-[var(--accent)]">
+            <Settings2 className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-[var(--foreground)]">Atalhos</h3>
+            <p className="text-sm text-[var(--muted-foreground)]">
+              Acesso rápido às áreas administrativas do sistema.
             </p>
-            {"comingSoon" in section && section.comingSoon ? (
-              <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
-                Em breve
-              </p>
-            ) : section.href && section.label ? (
-              <ActionButton href={section.href} className="mt-6 self-start">
-                {section.label}
-              </ActionButton>
-            ) : null}
-          </Card>
-        );
-      })}
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {sections.map((section) => {
+            const Icon = section.icon;
+
+            return (
+              <Card key={section.title} className="flex flex-col">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--panel-strong)] text-[var(--accent)]">
+                  <Icon className="h-6 w-6" />
+                </div>
+                <h3 className="mt-5 text-xl font-semibold text-[var(--foreground)]">
+                  {section.title}
+                </h3>
+                <p className="mt-3 flex-1 text-sm leading-7 text-[var(--muted-foreground)]">
+                  {section.description}
+                </p>
+                {section.href && section.label ? (
+                  <ActionButton href={section.href} className="mt-6 self-start">
+                    {section.label}
+                  </ActionButton>
+                ) : null}
+              </Card>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

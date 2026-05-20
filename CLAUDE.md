@@ -60,6 +60,7 @@ export function MeuModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
 - Caixa do modal: `rounded-[28px] border border-white/20 bg-[var(--panel-strong)] shadow-[0_40px_100px_rgba(0,0,0,0.35)]`.
 - Bloquear scroll do body com `document.body.style.overflow`.
 - Fechar ao clicar no backdrop via `<div className="absolute inset-0" onClick={onClose} />`.
+- **Animações obrigatórias**: usar `useAnimatedModal(isOpen)` de `@/lib/use-animated-modal` para enter/exit. Substituir `if (!isOpen || !mounted)` por `if (!shouldRender || !mounted)`. Aplicar classes dinâmicas no overlay e na caixa (ver seção Animações).
 
 ---
 
@@ -189,6 +190,51 @@ Sempre que adicionar um campo numérico (ex: quantidade, preço):
   onChange={(e) => setValue(e.target.value)}
   className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 />
+```
+
+---
+
+### Animações
+
+O sistema usa um conjunto de keyframes e tokens Tailwind definidos em `globals.css`. Toda implementação de itens visuais deve seguir o padrão abaixo — nunca criar `@keyframes` avulsos ou classes de animação fora deste sistema.
+
+**Tokens disponíveis (classes Tailwind):**
+
+| Classe | Uso |
+|--------|-----|
+| `animate-modal-in` | Entrada da caixa do modal (scale + fadeUp, spring 300ms) |
+| `animate-modal-out` | Saída da caixa do modal (scale + fadeDown, 180ms) |
+| `animate-overlay-in` | Fade-in do backdrop do modal (220ms) |
+| `animate-overlay-out` | Fade-out do backdrop do modal (180ms) |
+| `animate-page-in` | Entrada de conteúdo de página (slideUp + fade, spring 340ms) |
+| `animate-fade-in` | Fade-in genérico para elementos que surgem na tela (220ms) |
+| `animate-slide-down` | Entrada de painéis/dropdowns suspensos (slideDown + fade, 200ms) |
+
+**Regras por tipo de elemento:**
+
+- **Modais**: usar `useAnimatedModal` + classes dinâmicas. O overlay recebe `isClosing ? "animate-overlay-out" : "animate-overlay-in"` e a caixa recebe `isClosing ? "animate-modal-out" : "animate-modal-in"`.
+- **Painéis suspensos** (dropdowns, popovers, comboboxes): usar `animate-slide-down` na entrada. Sem animação de saída necessária (desaparece por unmount imediato).
+- **Transições de página**: já gerenciadas automaticamente pelo `PageTransitionWrapper` em `app-shell.tsx`. Não adicionar `animate-page-in` manualmente nas pages.
+- **Botões**: `active:scale-[0.97]` já embutido no componente `Button`. Não duplicar.
+- **Cards e itens de lista** que surgem dinamicamente: usar `animate-fade-in`.
+
+**Padrão modal com animação:**
+
+```tsx
+import { useAnimatedModal } from "@/lib/use-animated-modal";
+
+const { shouldRender, isClosing } = useAnimatedModal(isOpen);
+if (!shouldRender || !mounted) return null;
+
+return createPortal(
+  <div className={`fixed inset-0 z-[1000] ... ${isClosing ? "animate-overlay-out" : "animate-overlay-in"}`}>
+    <div className="absolute inset-0" onClick={onClose} />
+    <div className={`relative ... ${isClosing ? "animate-modal-out" : "animate-modal-in"}`}>
+      {/* conteúdo */}
+    </div>
+  </div>,
+  document.body,
+);
 ```
 
 ---

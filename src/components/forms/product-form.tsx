@@ -3,7 +3,7 @@
 import { ProductStatus } from "@prisma/client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   productSchema,
+  productUpdateSchema,
   type ProductFormValues,
   type ProductInput,
 } from "@/modules/products/schemas";
@@ -59,8 +60,12 @@ export function ProductForm({
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const isEditing = Boolean(initialValues);
+
   const form = useForm<ProductFormValues, undefined, ProductInput>({
-    resolver: zodResolver(productSchema),
+    resolver: zodResolver(
+      isEditing ? productUpdateSchema : productSchema,
+    ) as unknown as Resolver<ProductFormValues, undefined, ProductInput>,
     defaultValues: initialValues || {
       name: "",
       categoryId: "",
@@ -262,25 +267,36 @@ export function ProductForm({
           <FieldError message={form.formState.errors.minPrice?.message} />
         </div>
 
-        <div>
-          <FieldLabel label="Quantidade em estoque" required />
-          <Input
-            placeholder="Ex.: 24"
-            inputMode="numeric"
-            aria-invalid={!!form.formState.errors.stockQuantity}
-            className={
-              form.formState.errors.stockQuantity
-                ? `${errorTone.border} ${errorTone.ring}`
-                : undefined
-            }
-            {...form.register("stockQuantity", {
-              onChange: (e) => {
-                e.target.value = e.target.value.replace(/\D/g, "");
-              },
-            })}
-          />
-          <FieldError message={form.formState.errors.stockQuantity?.message} />
-        </div>
+        {!isEditing ? (
+          <div>
+            <FieldLabel label="Quantidade em estoque (depósito)" required />
+            <Input
+              placeholder="Ex.: 24"
+              inputMode="numeric"
+              aria-invalid={!!form.formState.errors.stockQuantity}
+              className={
+                form.formState.errors.stockQuantity
+                  ? `${errorTone.border} ${errorTone.ring}`
+                  : undefined
+              }
+              {...form.register("stockQuantity", {
+                onChange: (e) => {
+                  e.target.value = e.target.value.replace(/\D/g, "");
+                },
+              })}
+            />
+            <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+              O estoque inicial entra no depósito. Use Estoque para lançar em outras unidades.
+            </p>
+            <FieldError message={form.formState.errors.stockQuantity?.message} />
+          </div>
+        ) : (
+          <div className="sm:col-span-2 rounded-2xl border border-[var(--border)] bg-[var(--panel-strong)] px-4 py-3 text-sm text-[var(--muted-foreground)]">
+            Para alterar quantidades, use{" "}
+            <span className="font-medium text-[var(--foreground)]">Estoque → Adicionar estoque</span>{" "}
+            ou transferências entre unidades.
+          </div>
+        )}
 
         <div>
           <FieldLabel label="Estoque mínimo" />

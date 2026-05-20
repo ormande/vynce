@@ -1,6 +1,8 @@
 import { Prisma, ProductStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
+import { syncProductStockFromBranches } from "@/lib/stock-ledger";
+import { findPlatformSettings } from "@/modules/platform-settings/repository";
 
 export async function listProducts(params?: {
   search?: string;
@@ -89,16 +91,24 @@ export async function createProduct(data: {
     });
 
     if (branches.length > 0) {
-      const warehouse = branches.find((b) => b.isWarehouse) ?? branches[0];
+      const settings = await findPlatformSettings();
+      const singleUnitMode = settings?.singleUnitMode ?? false;
+      const stockTarget =
+        singleUnitMode && branches.length === 1
+          ? branches[0]
+          : (branches.find((b) => b.isWarehouse) ?? branches[0]);
+
       await tx.branchStock.createMany({
         data: branches.map((branch) => ({
           branchId: branch.id,
           productId: product.id,
-          quantity: branch.id === warehouse.id ? data.stockQuantity : 0,
+          quantity: branch.id === stockTarget.id ? data.stockQuantity : 0,
           lowStockThreshold: data.lowStockThreshold,
         })),
         skipDuplicates: true,
       });
+
+      await syncProductStockFromBranches(tx, product.id);
     }
 
     return product;

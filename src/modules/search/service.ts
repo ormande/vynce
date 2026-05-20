@@ -5,6 +5,7 @@ import {
   SHOW_RECEIVABLES_MODULE_UI,
 } from "@/lib/platform-config";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getPlatformSettings } from "@/modules/platform-settings/service";
 
 export type SearchResultItem = {
   id: string;
@@ -67,6 +68,8 @@ export async function globalSearch(
   const branchIds = options?.branchIds ?? [];
   const isOwner = options?.roleSlug === "owner" || options?.accessAll === true;
   const restrictBranches = !isOwner && branchIds.length > 0;
+
+  const { singleUnitMode } = await getPlatformSettings();
 
   const branchScope = restrictBranches ? { id: { in: branchIds } } : {};
   const saleBranchFilter = restrictBranches ? { branchId: { in: branchIds } } : {};
@@ -181,25 +184,27 @@ export async function globalSearch(
       orderBy: { soldAt: "desc" },
       take: LIMIT_PER_GROUP,
     }),
-    db.stockTransfer.findMany({
-      where: {
-        ...transferScope,
-        OR: [
-          { product: { name: { contains: q, mode: "insensitive" } } },
-          { product: { code: { contains: q, mode: "insensitive" } } },
-          { fromBranch: { name: { contains: q, mode: "insensitive" } } },
-          { toBranch: { name: { contains: q, mode: "insensitive" } } },
-          { notes: { contains: q, mode: "insensitive" } },
-        ],
-      },
-      include: {
-        product: true,
-        fromBranch: true,
-        toBranch: true,
-      },
-      orderBy: { requestedAt: "desc" },
-      take: LIMIT_PER_GROUP,
-    }),
+    singleUnitMode
+      ? Promise.resolve([])
+      : db.stockTransfer.findMany({
+          where: {
+            ...transferScope,
+            OR: [
+              { product: { name: { contains: q, mode: "insensitive" } } },
+              { product: { code: { contains: q, mode: "insensitive" } } },
+              { fromBranch: { name: { contains: q, mode: "insensitive" } } },
+              { toBranch: { name: { contains: q, mode: "insensitive" } } },
+              { notes: { contains: q, mode: "insensitive" } },
+            ],
+          },
+          include: {
+            product: true,
+            fromBranch: true,
+            toBranch: true,
+          },
+          orderBy: { requestedAt: "desc" },
+          take: LIMIT_PER_GROUP,
+        }),
     SHOW_CUSTOMERS_MODULE_UI
       ? db.customer.findMany({
           where: {
@@ -312,20 +317,22 @@ export async function globalSearch(
   );
   if (salesGroup) groups.push(salesGroup);
 
-  const transferGroup = toItems(
-    transfers,
-    "Transferências",
-    q,
-    (t) => `${t.product.name} · ${t.quantity} un.`,
-    (t) => [
-      { label: "Produto", value: t.product.name },
-      { label: "Origem", value: t.fromBranch.name },
-      { label: "Destino", value: t.toBranch.name },
-      { label: "Observações", value: t.notes ?? "" },
-    ],
-    () => "/transfers",
-  );
-  if (transferGroup) groups.push(transferGroup);
+  if (!singleUnitMode) {
+    const transferGroup = toItems(
+      transfers,
+      "Transferências",
+      q,
+      (t) => `${t.product.name} · ${t.quantity} un.`,
+      (t) => [
+        { label: "Produto", value: t.product.name },
+        { label: "Origem", value: t.fromBranch.name },
+        { label: "Destino", value: t.toBranch.name },
+        { label: "Observações", value: t.notes ?? "" },
+      ],
+      () => "/transfers",
+    );
+    if (transferGroup) groups.push(transferGroup);
+  }
 
   const customerGroup = toItems(
     customers,

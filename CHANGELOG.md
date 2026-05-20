@@ -40,6 +40,39 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Padronização de contraste: texto claro em fundos escuros e vice-versa em todo o sistema.
 - Refatoração de botões em diversas páginas para utilizar componentes padronizados.
 
+## [1.3.0] — 2026-05-20
+
+### Adicionado
+- **Módulo de Clientes**: cadastro, listagem e histórico de compras com saldo em aberto.
+- **Módulo de Recebíveis**: acompanhamento e baixa de títulos gerados por vendas fiado.
+- **Configurações de Plataforma** (`PlatformSettings`): painel de preferências do sistema com opções persistidas no banco.
+- **Modo Unidade Única** (`singleUnitMode`): oculta automaticamente transferências, multi-unidade e campos desnecessários quando o negócio opera com apenas uma filial.
+- **Sincronização de estoque com vendas**: estoque é decrementado atomicamente no momento do registro da venda.
+- **API de entrada de estoque** (`POST /api/inventory/inbound`): registro de entradas de mercadoria por unidade.
+- **API de estoque por filial** (`GET /api/inventory/branch-stock`): consulta de saldo por produto e unidade.
+- **Stock Ledger** (`src/lib/stock-ledger.ts`): camada de abstração para movimentações de estoque.
+- **Setup blocks** (`src/lib/setup-blocks.ts`) e componente `SetupEmptyState`: guia de configuração inicial exibido quando o sistema ainda não está operacional.
+- **Permissões de sessão** (`src/lib/session-permissions.ts`): utilitários para leitura de permissões do usuário logado sem consulta extra ao banco.
+- **Sistema de animações**: keyframes e tokens Tailwind (`animate-modal-in/out`, `animate-overlay-in/out`, `animate-page-in`, `animate-fade-in`, `animate-slide-down`) definidos em `globals.css`.
+- **Transições de página**: componente `PageTransitionWrapper` com fade + slide disparado a cada navegação.
+- **Animações de entrada e saída de modais**: hook `useAnimatedModal` controla o ciclo de vida dos seis modais do sistema sem dependências externas de motion.
+- **Press feedback nos botões**: `active:scale-[0.97]` no componente `Button`.
+
+### Melhorado
+- Campo de cliente na tela de venda substituído por combobox pesquisável: abre lista ao clicar, filtra por nome e telefone em tempo real, exibe telefone como hint e permite limpar a seleção com botão X embutido.
+- Serviço de vendas refatorado com suporte a desconto, data retroativa e vínculo obrigatório de cliente em vendas fiado.
+- Formulário de pagamento de recebíveis atualizado.
+- Serviço de notificações expandido para cobrir estoque baixo, transferências pendentes e recebíveis vencidos.
+- Serviço de busca global atualizado para indexar clientes, recebíveis e configurações de plataforma.
+- Sidebar condicional por `singleUnitMode`: oculta transferências e exibe módulos de clientes/recebíveis conforme configuração da plataforma.
+- `CLAUDE.md` atualizado com seção de **Animações** e regras obrigatórias de padrão visual.
+
+### Banco de dados
+- Migration `20260519120000_platform_settings_and_stock_sync`: modelo `PlatformSettings` e sincronização de estoque.
+- Migration `20260519140000_single_unit_mode`: campo `singleUnitMode` em `PlatformSettings`.
+
+---
+
 ## [1.2.1] — 2026-05-12
 
 ### Adicionado

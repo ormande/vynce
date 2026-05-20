@@ -1,10 +1,14 @@
 import { Receipt } from "lucide-react";
 import { SaleForm } from "@/components/forms/sale-form";
 import { AppShell } from "@/components/layout/app-shell";
+import { SetupEmptyState } from "@/components/ui/setup-empty-state";
+import { resolveSetupBlock } from "@/lib/setup-blocks";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Table } from "@/components/ui/table";
-import { auth } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth-guards";
+import { SHOW_CUSTOMERS_MODULE_UI } from "@/lib/platform-config";
+import { permissionCatalog } from "@/lib/permissions";
 import {
   formatCurrency,
   formatDateTime,
@@ -15,19 +19,28 @@ import { listActiveBranches } from "@/modules/branches/service";
 import { getCustomersForSaleForm } from "@/modules/customers/service";
 import { getProducts } from "@/modules/products/service";
 import { getSales } from "@/modules/sales/service";
+import { getPlatformSettings } from "@/modules/platform-settings/service";
+import { getSetupSnapshot } from "@/modules/setup/service";
 
 export const dynamic = "force-dynamic";
 
 export default async function SalesPage() {
-  const session = await auth();
-  const isSeller = session?.user?.roleSlug === "seller";
-  const branchIds = session?.user?.branchIds ?? [];
+  const session = await requirePermission(permissionCatalog.salesRead);
+  const isSeller = session.user.roleSlug === "seller";
+  const branchIds = session.user.branchIds ?? [];
 
-  const [allBranches, customers, products] = await Promise.all([
-    listActiveBranches(),
-    getCustomersForSaleForm(),
-    getProducts({ status: "ALL" }),
-  ]);
+  const [snapshot, settings, allBranches, customerFormData, products] =
+    await Promise.all([
+      getSetupSnapshot(),
+      getPlatformSettings(),
+      listActiveBranches(),
+      getCustomersForSaleForm(),
+      getProducts({ status: "ALL" }),
+    ]);
+
+  const setupBlock = resolveSetupBlock("sales", snapshot, {
+    singleUnitMode: settings.singleUnitMode,
+  });
 
   const branches = isSeller
     ? allBranches.filter((b) => branchIds.includes(b.id))
@@ -41,14 +54,15 @@ export default async function SalesPage() {
   const defaultBranchId =
     branches.find((b) => !b.isWarehouse)?.id ?? branches[0]?.id ?? "";
 
-  const defaultCustomerId = customers[0]?.id ?? "";
-
   return (
     <AppShell
       title="Vendas"
-      subtitle="Registro de vendas à vista com atualização automática de estoque."
+      subtitle="Registro de vendas à vista ou fiado, com atualização automática de estoque e títulos a receber."
       pathname="/sales"
     >
+      {setupBlock ? (
+        <SetupEmptyState block={setupBlock} icon={Receipt} />
+      ) : (
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         <SaleForm
           branches={branches.map((b) => ({
@@ -57,12 +71,13 @@ export default async function SalesPage() {
             isWarehouse: b.isWarehouse,
           }))}
           defaultBranchId={defaultBranchId}
-          customerId={defaultCustomerId}
+          walkInCustomerId={customerFormData.walkInCustomerId}
+          customers={customerFormData.customers}
+          showCustomerPicker={SHOW_CUSTOMERS_MODULE_UI}
           products={products.items.map((product) => ({
             id: product.id,
             name: product.name,
             salePrice: product.salePrice.toString(),
-            stockQuantity: product.stockQuantity,
           }))}
         />
 
@@ -96,7 +111,7 @@ export default async function SalesPage() {
                 sales.map((sale) => (
                   <tr
                     key={sale.id}
-                    className="rounded-3xl bg-[var(--panel-strong)] text-center"
+                    className="rounded-3xl bg-[var(--panel-strong)] text-center transition-colors hover:bg-white shadow-sm hover:shadow-md"
                   >
                     <td className="rounded-l-3xl px-4 py-4 text-left">
                       <p className="font-medium text-[var(--foreground)]">{sale.branch.name}</p>
@@ -133,6 +148,7 @@ export default async function SalesPage() {
           </Table>
         </Card>
       </div>
+      )}
     </AppShell>
   );
 }

@@ -6,7 +6,7 @@
  */
 
 /** Quando `false`, oculta Clientes na navegação, rankings por cliente e a rota dedicada; Prisma e APIs de clientes permanecem. */
-export const SHOW_CUSTOMERS_MODULE_UI = false;
+export const SHOW_CUSTOMERS_MODULE_UI = true;
 
-/** Quando `false`, oculta Contas a receber na navegação; a rota e APIs permanecem para reativação futura. */
-export const SHOW_RECEIVABLES_MODULE_UI = false;
+/** Quando `false`, oculta Contas a receber na navegação e a opção de venda fiado. */
+export const SHOW_RECEIVABLES_MODULE_UI = true;

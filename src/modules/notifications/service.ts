@@ -21,11 +21,13 @@ export async function getNotificationsForUser(params: {
   roleSlug?: string | null;
   branchIds: string[];
   accessAll: boolean;
+  singleUnitMode?: boolean;
 }): Promise<AppNotification[]> {
-  const { userId, roleSlug, branchIds, accessAll } = params;
+  const { userId, roleSlug, branchIds, accessAll, singleUnitMode = false } = params;
   const items: AppNotification[] = [];
   const isOwner = roleSlug === "owner" || accessAll;
 
+  if (!singleUnitMode) {
   const pendingTransfers = isOwner
     ? await db.stockTransfer.findMany({
         where: { status: "PENDING" },
@@ -48,6 +50,7 @@ export async function getNotificationsForUser(params: {
       href: isOwner ? "/transfers?status=PENDING" : "/transfers?tab=incoming",
       createdAt: transfer.requestedAt.toISOString(),
     });
+  }
   }
 
   const lowStockProducts = await db.product.findMany({
@@ -105,32 +108,34 @@ export async function getNotificationsForUser(params: {
     }
   }
 
-  const myPendingOutbound = await db.stockTransfer.findMany({
-    where: {
-      status: "PENDING",
-      requestedById: userId,
-    },
-    include: {
-      product: true,
-      fromBranch: true,
-      toBranch: true,
-    },
-    orderBy: { requestedAt: "desc" },
-    take: 10,
-  });
-
-  for (const transfer of myPendingOutbound) {
-    const id = `transfer-out:${transfer.id}`;
-    if (items.some((n) => n.id === `transfer:${transfer.id}`)) continue;
-
-    items.push({
-      id,
-      category: "Transferências",
-      title: `Solicitação: ${transfer.product.name}`,
-      snippet: `Enviado de ${transfer.fromBranch.name} para ${transfer.toBranch.name} · aguardando confirmação`,
-      href: "/transfers?tab=my",
-      createdAt: transfer.requestedAt.toISOString(),
+  if (!singleUnitMode) {
+    const myPendingOutbound = await db.stockTransfer.findMany({
+      where: {
+        status: "PENDING",
+        requestedById: userId,
+      },
+      include: {
+        product: true,
+        fromBranch: true,
+        toBranch: true,
+      },
+      orderBy: { requestedAt: "desc" },
+      take: 10,
     });
+
+    for (const transfer of myPendingOutbound) {
+      const id = `transfer-out:${transfer.id}`;
+      if (items.some((n) => n.id === `transfer:${transfer.id}`)) continue;
+
+      items.push({
+        id,
+        category: "Transferências",
+        title: `Solicitação: ${transfer.product.name}`,
+        snippet: `Enviado de ${transfer.fromBranch.name} para ${transfer.toBranch.name} · aguardando confirmação`,
+        href: "/transfers?tab=my",
+        createdAt: transfer.requestedAt.toISOString(),
+      });
+    }
   }
 
   return items.sort(
@@ -143,6 +148,7 @@ export async function getNotificationCount(params: {
   roleSlug?: string | null;
   branchIds: string[];
   accessAll: boolean;
+  singleUnitMode?: boolean;
 }): Promise<number> {
   const notifications = await getNotificationsForUser(params);
   return notifications.length;
