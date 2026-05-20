@@ -53,10 +53,12 @@ export function ProductForm({
   categories,
   initialValues,
   onSuccess,
+  allowEmptyStock = false,
 }: {
   categories: { id: string; name: string }[];
   initialValues?: ProductFormValues & { id: string };
   onSuccess?: () => void;
+  allowEmptyStock?: boolean;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +94,19 @@ export function ProductForm({
 
   async function onSubmit(values: ProductInput) {
     setError(null);
+
+    if (
+      !isEditing &&
+      !allowEmptyStock &&
+      (values.stockQuantity === undefined || values.stockQuantity <= 0)
+    ) {
+      form.setError("stockQuantity", {
+        message:
+          "Informe uma quantidade inicial maior que zero. Para permitir cadastro sem estoque, habilite a opção em Configurações.",
+      });
+      return;
+    }
+
     const url = initialValues ? `/api/products/${initialValues.id}` : "/api/products";
     const method = initialValues ? "PATCH" : "POST";
 
@@ -269,9 +284,12 @@ export function ProductForm({
 
         {!isEditing ? (
           <div>
-            <FieldLabel label="Quantidade em estoque (depósito)" required />
+            <FieldLabel
+              label="Quantidade em estoque (depósito)"
+              required={!allowEmptyStock}
+            />
             <Input
-              placeholder="Ex.: 24"
+              placeholder={allowEmptyStock ? "Deixe em branco para 0" : "Ex.: 24"}
               inputMode="numeric"
               aria-invalid={!!form.formState.errors.stockQuantity}
               className={
@@ -286,7 +304,9 @@ export function ProductForm({
               })}
             />
             <p className="mt-2 text-xs text-[var(--muted-foreground)]">
-              O estoque inicial entra no depósito. Use Estoque para lançar em outras unidades.
+              {allowEmptyStock
+                ? "Cadastro sem estoque está permitido nas configurações. O produto entra com 0 unidades se em branco."
+                : "O estoque inicial entra no depósito. Use Estoque para lançar em outras unidades."}
             </p>
             <FieldError message={form.formState.errors.stockQuantity?.message} />
           </div>

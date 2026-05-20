@@ -40,6 +40,23 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Padronização de contraste: texto claro em fundos escuros e vice-versa em todo o sistema.
 - Refatoração de botões em diversas páginas para utilizar componentes padronizados.
 
+## [1.6.0] — 2026-05-20
+
+### Adicionado
+- **Exclusão de unidades com retorno de estoque**: novo botão de lixeira nos cards de `/branches` aciona um `ConfirmationModal` (variant danger). Antes da exclusão definitiva, todo o saldo de `BranchStock` da unidade é somado ao depósito central em transação atômica.
+  - Service `removeBranch` valida: não permite excluir a única unidade-depósito, bloqueia exclusão quando há vendas ou transferências registradas (sugere desativar) e exige uma warehouse ativa para receber o estoque.
+  - Repositório: novas funções `findAnyActiveWarehouse`, `countBranchSales`, `countBranchTransfers` e `deleteBranchWithStockMigration` (transação que soma estoque na warehouse e deleta a branch; `BranchStock` e `UserBranch` caem por cascade, `InventoryMovement.branchId` vira null pelo SetNull).
+  - Server Action `deleteBranchAction` revalida `/branches`, `/inventory` e `/transfers`. Toast informa quantos produtos tiveram estoque migrado.
+
+### Alterado
+- **Cadastro de produtos sem estoque inicial**: `stockQuantity` virou opcional no `productSchema` (default 0). O `ProductForm` recebe nova prop `allowEmptyStock` e adapta label/placeholder/helper text. A validação obrigatória (> 0) só roda no client quando a opção `allowSalesWithoutStock` está desabilitada em Configurações.
+- **Telefone do cliente agora é opcional**: schema Prisma alterado para `phone String?` (com `@unique` — o Postgres permite múltiplos NULLs em índices únicos). Migration `20260520140000_customer_phone_optional` aplicada. `customerSchema` valida formato (10–11 dígitos) apenas quando o campo é preenchido. `CustomerFormModal` exibe label "Telefone (opcional)" e remove a validação obrigatória do submit.
+
+### Banco de dados
+- Migration `20260520140000_customer_phone_optional`: `ALTER TABLE "Customer" ALTER COLUMN "phone" DROP NOT NULL`.
+
+---
+
 ## [1.5.0] — 2026-05-20
 
 ### Corrigido

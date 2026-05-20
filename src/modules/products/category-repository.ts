@@ -1,5 +1,19 @@
 import { db } from "@/lib/db";
 
+/**
+ * Retorna `createdById` apenas se o user realmente existir no banco.
+ * Útil após resets do banco (JWT antigo ainda no cookie) ou
+ * quando o user foi removido depois que o cookie foi emitido.
+ */
+async function safeCreatedById(createdById?: string): Promise<string | undefined> {
+  if (!createdById) return undefined;
+  const exists = await db.user.findUnique({
+    where: { id: createdById },
+    select: { id: true },
+  });
+  return exists ? createdById : undefined;
+}
+
 export async function listAllCategoriesWithCounts() {
   return db.category.findMany({
     orderBy: [{ isActive: "desc" }, { name: "asc" }],
@@ -23,11 +37,12 @@ export async function createCategory(data: {
   description?: string | null;
   createdById?: string;
 }) {
+  const createdById = await safeCreatedById(data.createdById);
   return db.category.create({
     data: {
       name: data.name,
       description: data.description ?? null,
-      createdById: data.createdById,
+      createdById,
     },
     include: {
       _count: { select: { products: true } },

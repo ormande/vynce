@@ -84,17 +84,17 @@ export async function updateCustomer(id: string, input: unknown) {
   }
 
   const data = customerSchema.parse(input);
-  const phoneDigits = onlyDigits(data.phone);
+  const phoneDigits = data.phone ? onlyDigits(data.phone) : "";
   const cpfDigits = data.cpf ? onlyDigits(data.cpf) : "";
 
-  if (phoneDigits === WALK_IN_SALE_CUSTOMER_PHONE) {
+  if (phoneDigits && phoneDigits === WALK_IN_SALE_CUSTOMER_PHONE) {
     throw new AppError("Este telefone é reservado para vendas avulsas.", 400);
   }
 
   try {
     return await patchCustomer(id, {
       name: data.name,
-      phone: phoneDigits,
+      phone: phoneDigits || null,
       cpf: cpfDigits || null,
       address: data.address || null,
       notes: data.notes || null,
@@ -139,20 +139,20 @@ export async function deleteCustomer(id: string) {
 export async function registerCustomer(input: unknown) {
   const data = customerSchema.parse(input);
 
-  const phoneDigits = onlyDigits(data.phone);
+  const phoneDigits = data.phone ? onlyDigits(data.phone) : "";
   const cpfDigits = data.cpf ? onlyDigits(data.cpf) : "";
 
-  if (phoneDigits === WALK_IN_SALE_CUSTOMER_PHONE) {
+  if (phoneDigits && phoneDigits === WALK_IN_SALE_CUSTOMER_PHONE) {
     throw new AppError("Este telefone é reservado para vendas avulsas.", 400);
   }
 
   try {
     return await createCustomer({
-      ...data,
-      phone: phoneDigits,
-      cpf: cpfDigits || undefined,
-      address: data.address || undefined,
-      notes: data.notes || undefined,
+      name: data.name,
+      phone: phoneDigits || null,
+      cpf: cpfDigits || null,
+      address: data.address || null,
+      notes: data.notes || null,
     });
   } catch (error) {
     if (

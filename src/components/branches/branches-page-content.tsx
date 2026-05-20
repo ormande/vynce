@@ -3,17 +3,22 @@
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
-import { AlertCircle, Building2, Pencil, Plus } from "lucide-react";
+import { AlertCircle, Building2, Pencil, Plus, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ui/action-button";
 import { Card } from "@/components/ui/card";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { Input } from "@/components/ui/input";
-import { updateBranchAction } from "@/modules/branches/actions";
+import {
+  deleteBranchAction,
+  updateBranchAction,
+} from "@/modules/branches/actions";
 import {
   branchEditFormSchema,
   type BranchEditFormInput,
@@ -40,6 +45,8 @@ export function BranchesPageContent({
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<BranchCardModel | null>(null);
+  const [deleting, setDeleting] = useState<BranchCardModel | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const form = useForm<BranchEditFormValues, undefined, BranchEditFormInput>({
     resolver: zodResolver(branchEditFormSchema),
@@ -87,6 +94,31 @@ export function BranchesPageContent({
     router.refresh();
   }
 
+  async function handleConfirmDelete() {
+    if (!deleting) return;
+    setIsDeleting(true);
+    try {
+      const result = await deleteBranchAction(deleting.id);
+      if (!result.ok) {
+        toast.error("Não foi possível excluir a unidade", {
+          description: result.message,
+        });
+        return;
+      }
+      if (result.migratedProducts > 0) {
+        toast.success(`Unidade "${result.deletedBranchName}" excluída`, {
+          description: `Estoque de ${result.migratedProducts} produto(s) foi movido para ${result.warehouseName}.`,
+        });
+      } else {
+        toast.success(`Unidade "${result.deletedBranchName}" excluída`);
+      }
+      setDeleting(null);
+      router.refresh();
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -128,19 +160,34 @@ export function BranchesPageContent({
                     </div>
                   </div>
                   {canWrite ? (
-                    <button
-                      type="button"
-                      title="Editar unidade"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setEditing(branch);
-                      }}
-                      className="relative z-20 shrink-0 cursor-pointer rounded-full border border-[var(--border-strong)] bg-white/90 p-2.5 text-[var(--foreground)] shadow-sm transition hover:bg-[var(--panel-strong)] pointer-events-auto"
-                      aria-label="Editar unidade"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
+                    <div className="relative z-20 flex shrink-0 items-center gap-2 pointer-events-auto">
+                      <button
+                        type="button"
+                        title="Editar unidade"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setEditing(branch);
+                        }}
+                        className="cursor-pointer rounded-full border border-[var(--border-strong)] bg-white/90 p-2.5 text-[var(--foreground)] shadow-sm transition hover:bg-[var(--panel-strong)]"
+                        aria-label="Editar unidade"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        title="Excluir unidade"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDeleting(branch);
+                        }}
+                        className="cursor-pointer rounded-full border border-rose-200 bg-white/90 p-2.5 text-rose-600 shadow-sm transition hover:bg-rose-50"
+                        aria-label="Excluir unidade"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   ) : null}
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -166,6 +213,24 @@ export function BranchesPageContent({
           </Card>
         ))}
       </div>
+
+      <ConfirmationModal
+        isOpen={!!deleting}
+        onClose={() => {
+          if (!isDeleting) setDeleting(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title={`Excluir "${deleting?.name ?? ""}"?`}
+        description={
+          deleting?.isWarehouse
+            ? "Esta unidade está marcada como depósito central. A exclusão só será permitida se houver outra unidade-depósito ativa para receber o estoque."
+            : "Todo o estoque desta unidade será movido para o depósito central antes da exclusão. A unidade não pode ter vendas nem transferências registradas."
+        }
+        confirmLabel={isDeleting ? "Excluindo…" : "Excluir unidade"}
+        cancelLabel="Cancelar"
+        variant="danger"
+        loading={isDeleting}
+      />
 
       {editing
         ? createPortal(

@@ -42,7 +42,7 @@ function defaultDueDateIso() {
 type CustomerOption = {
   id: string;
   name: string;
-  phone?: string;
+  phone?: string | null;
   isWalkIn?: boolean;
 };
 

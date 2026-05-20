@@ -58,6 +58,7 @@ export default async function NewProductPage() {
               id: category.id,
               name: category.name,
             }))}
+            allowEmptyStock={settings.allowSalesWithoutStock}
           />
         </div>
       )}

@@ -172,3 +172,77 @@ export async function deleteUserBranchAssignment(userId: string, branchId: strin
     where: { userId_branchId: { userId, branchId } },
   });
 }
+
+export async function findAnyActiveWarehouse(excludeId?: string) {
+  return db.branch.findFirst({
+    where: {
+      isWarehouse: true,
+      isActive: true,
+      ...(excludeId ? { NOT: { id: excludeId } } : {}),
+    },
+    select: { id: true, name: true },
+  });
+}
+
+export async function countBranchSales(branchId: string) {
+  return db.sale.count({ where: { branchId } });
+}
+
+export async function countBranchTransfers(branchId: string) {
+  return db.stockTransfer.count({
+    where: {
+      OR: [{ fromBranchId: branchId }, { toBranchId: branchId }],
+    },
+  });
+}
+
+/**
+ * Exclusão definitiva de uma unidade.
+ * - Move todo estoque para a unidade-depósito (warehouse) informada.
+ * - Remove BranchStock, UserBranch (cascade pelo schema) e a Branch.
+ * Pré-condições devem ser validadas no service: não pode ter sales nem transfers.
+ */
+export async function deleteBranchWithStockMigration(
+  branchId: string,
+  warehouseId: string,
+) {
+  return db.$transaction(async (tx) => {
+    const sourceStocks = await tx.branchStock.findMany({
+      where: { branchId, quantity: { gt: 0 } },
+      select: { productId: true, quantity: true, lowStockThreshold: true },
+    });
+
+    for (const row of sourceStocks) {
+      const existing = await tx.branchStock.findUnique({
+        where: {
+          branchId_productId: { branchId: warehouseId, productId: row.productId },
+        },
+        select: { id: true },
+      });
+
+      if (existing) {
+        await tx.branchStock.update({
+          where: {
+            branchId_productId: { branchId: warehouseId, productId: row.productId },
+          },
+          data: { quantity: { increment: row.quantity } },
+        });
+      } else {
+        await tx.branchStock.create({
+          data: {
+            branchId: warehouseId,
+            productId: row.productId,
+            quantity: row.quantity,
+            lowStockThreshold: row.lowStockThreshold,
+          },
+        });
+      }
+    }
+
+    // BranchStock e UserBranch caem por cascade quando a Branch é deletada.
+    // InventoryMovement.branchId vira null pelo SetNull. CashRegisterSession também.
+    await tx.branch.delete({ where: { id: branchId } });
+
+    return { migratedProducts: sourceStocks.length };
+  });
+}

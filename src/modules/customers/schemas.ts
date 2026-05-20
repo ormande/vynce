@@ -6,11 +6,13 @@ export const customerSchema = z.object({
   name: z.string().min(3, "Informe o nome do cliente."),
   phone: z
     .string()
-    .min(1, "Informe um telefone válido.")
+    .optional()
+    .or(z.literal(""))
     .refine((value) => {
+      if (!value) return true;
       const digits = onlyDigits(value);
       return digits.length >= 10 && digits.length <= 11;
-    }, "Informe um telefone com DDD (10 ou 11 dígitos)."),
+    }, "Se informar o telefone, use DDD (10 ou 11 dígitos)."),
   cpf: z
     .string()
     .optional()

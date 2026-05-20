@@ -9,6 +9,7 @@ import {
   addUserToBranch,
   patchBranch,
   registerBranch,
+  removeBranch,
   removeUserFromBranch,
   searchEmployeesForBranch,
   setBranchActive,
@@ -67,6 +68,19 @@ export async function toggleBranchActiveAction(id: string) {
     revalidatePath("/branches");
     revalidatePath(`/branches/${id}`);
     return { ok: true as const };
+  } catch (error) {
+    return { ok: false as const, message: toErrorMessage(error) };
+  }
+}
+
+export async function deleteBranchAction(id: string) {
+  try {
+    await requireBranchesWrite();
+    const result = await removeBranch(id);
+    revalidatePath("/branches");
+    revalidatePath("/inventory");
+    revalidatePath("/transfers");
+    return { ok: true as const, ...result };
   } catch (error) {
     return { ok: false as const, message: toErrorMessage(error) };
   }

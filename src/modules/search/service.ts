@@ -341,7 +341,7 @@ export async function globalSearch(
     (c) => c.name,
     (c) => [
       { label: "Nome", value: c.name },
-      { label: "Telefone", value: c.phone },
+      { label: "Telefone", value: c.phone ?? "" },
       { label: "CPF", value: c.cpf ?? "" },
     ],
     (c) => `/customers?q=${encodeURIComponent(q)}`,

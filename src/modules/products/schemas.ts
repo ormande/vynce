@@ -107,7 +107,9 @@ export const productUpdateSchema = productCoreObject.superRefine(
 
 export const productSchema = productCoreObject
   .extend({
-    stockQuantity: requiredTextInteger("Quantidade em estoque"),
+    // Opcional: o frontend valida obrigatoriedade conforme `allowSalesWithoutStock`.
+    // Quando vazio, assume 0 — útil para cadastrar antes de receber a primeira entrada.
+    stockQuantity: optionalTextIntegerWithDefault("Quantidade em estoque", 0),
   })
   .superRefine(assertMinPriceNotAboveSalePrice);
 

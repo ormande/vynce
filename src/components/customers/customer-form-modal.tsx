@@ -18,7 +18,7 @@ import { useAnimatedModal } from "@/lib/use-animated-modal";
 export type CustomerRow = {
   id: string;
   name: string;
-  phone: string;
+  phone: string | null;
   cpf: string | null;
   address: string | null;
   notes: string | null;
@@ -62,7 +62,7 @@ export function CustomerFormModal({
     if (!isOpen) return;
     if (customer) {
       setName(customer.name);
-      setPhone(formatPhoneMask(customer.phone));
+      setPhone(customer.phone ? formatPhoneMask(customer.phone) : "");
       setCpf(customer.cpf ? formatCpfMask(customer.cpf) : "");
       setAddress(customer.address ?? "");
       setNotes(customer.notes ?? "");
@@ -87,8 +87,8 @@ export function CustomerFormModal({
       return;
     }
 
-    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
-      toast.error("Informe um telefone válido com DDD.");
+    if (phoneDigits.length > 0 && (phoneDigits.length < 10 || phoneDigits.length > 11)) {
+      toast.error("Se informar o telefone, use DDD (10 ou 11 dígitos).");
       return;
     }
 
@@ -175,7 +175,9 @@ export function CustomerFormModal({
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-[var(--foreground)]">Telefone</label>
+              <label className="text-sm font-medium text-[var(--foreground)]">
+                Telefone <span className="text-[var(--muted-foreground)]">(opcional)</span>
+              </label>
               <Input
                 value={phone}
                 onChange={(e) => setPhone(formatPhoneMask(e.target.value))}

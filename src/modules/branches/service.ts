@@ -1,11 +1,15 @@
 import { AppError } from "@/lib/errors";
 import { db } from "@/lib/db";
 import {
+  countBranchSales,
+  countBranchTransfers,
   createBranch,
   createUserBranchAssignment,
+  deleteBranchWithStockMigration,
   deleteUserBranchAssignment,
   findAllBranches,
   findAllBranchesAdmin,
+  findAnyActiveWarehouse,
   findBranchById,
   findUserBranchLink,
   findUserByIdWithRole,
@@ -61,6 +65,60 @@ export async function setBranchActive(id: string) {
     throw new AppError("Unidade não encontrada.", 404);
   }
   return updated;
+}
+
+export async function removeBranch(id: string) {
+  const branch = await db.branch.findUnique({
+    where: { id },
+    select: { id: true, isWarehouse: true, name: true },
+  });
+  if (!branch) {
+    throw new AppError("Unidade não encontrada.", 404);
+  }
+
+  if (branch.isWarehouse) {
+    const otherWarehouse = await findAnyActiveWarehouse(id);
+    if (!otherWarehouse) {
+      throw new AppError(
+        "Não é possível excluir a única unidade-depósito. Cadastre outra unidade como depósito antes.",
+        409,
+      );
+    }
+  }
+
+  // Bloqueia exclusão se houver vendas — preservação de histórico contábil.
+  const salesCount = await countBranchSales(id);
+  if (salesCount > 0) {
+    throw new AppError(
+      `Esta unidade possui ${salesCount} venda(s) registrada(s). Desative-a em vez de excluir para preservar o histórico.`,
+      409,
+    );
+  }
+
+  // Bloqueia exclusão se houver transferências (entrada ou saída).
+  const transfersCount = await countBranchTransfers(id);
+  if (transfersCount > 0) {
+    throw new AppError(
+      "Esta unidade possui histórico de transferências. Desative-a em vez de excluir.",
+      409,
+    );
+  }
+
+  // Procura uma warehouse ativa para receber o estoque (excluindo a própria unidade).
+  const warehouse = await findAnyActiveWarehouse(id);
+  if (!warehouse) {
+    throw new AppError(
+      "Nenhum depósito central ativo para receber o estoque. Crie ou ative um antes de excluir esta unidade.",
+      409,
+    );
+  }
+
+  const result = await deleteBranchWithStockMigration(id, warehouse.id);
+  return {
+    deletedBranchName: branch.name,
+    warehouseName: warehouse.name,
+    migratedProducts: result.migratedProducts,
+  };
 }
 
 export async function addUserToBranch(branchId: string, userId: string) {

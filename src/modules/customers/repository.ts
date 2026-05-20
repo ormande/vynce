@@ -41,10 +41,10 @@ export async function listCustomers(search?: string, includeInactive = false) {
 
 export async function createCustomer(data: {
   name: string;
-  phone: string;
-  cpf?: string;
-  address?: string;
-  notes?: string;
+  phone?: string | null;
+  cpf?: string | null;
+  address?: string | null;
+  notes?: string | null;
 }) {
   return db.customer.create({
     data,
@@ -55,7 +55,7 @@ export async function patchCustomer(
   id: string,
   data: {
     name: string;
-    phone: string;
+    phone?: string | null;
     cpf?: string | null;
     address?: string | null;
     notes?: string | null;
