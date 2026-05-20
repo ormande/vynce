@@ -5,16 +5,19 @@ import { db } from "@/lib/db";
 /** Telefone reservado para vendas sem cadastro de cliente na UI (único no banco). */
 export const WALK_IN_SALE_CUSTOMER_PHONE = "00000000000";
 
-export async function listCustomers(search?: string) {
-  const where: Prisma.CustomerWhereInput = search
-    ? {
-        OR: [
-          { name: { contains: search, mode: "insensitive" } },
-          { phone: { contains: search, mode: "insensitive" } },
-          { cpf: { contains: search, mode: "insensitive" } },
-        ],
-      }
-    : {};
+export async function listCustomers(search?: string, includeInactive = false) {
+  const where: Prisma.CustomerWhereInput = {
+    ...(includeInactive ? {} : { isActive: true }),
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" } },
+            { phone: { contains: search, mode: "insensitive" } },
+            { cpf: { contains: search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
 
   return db.customer.findMany({
     where,
@@ -77,6 +80,26 @@ export async function findCustomerWithCounts(id: string) {
 
 export async function hardDeleteCustomer(id: string) {
   return db.customer.delete({ where: { id } });
+}
+
+/**
+ * Soft delete: anonimiza o cliente e marca como inativo.
+ * Mantém o registro para preservar vínculos com vendas/recebíveis,
+ * mas remove da listagem e libera telefone/CPF para um novo cadastro.
+ */
+export async function softDeleteCustomer(id: string) {
+  const suffix = id.slice(-6);
+  return db.customer.update({
+    where: { id },
+    data: {
+      isActive: false,
+      name: "Cliente removido",
+      phone: `removido-${suffix}`,
+      cpf: null,
+      address: null,
+      notes: null,
+    },
+  });
 }
 
 export async function ensureWalkInSaleCustomer() {

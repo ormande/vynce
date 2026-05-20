@@ -32,7 +32,7 @@ export async function DELETE(
     }
     requireApiPermission(await auth(), permissionCatalog.customersWrite);
     const { id } = await params;
-    await deleteCustomer(id);
-    return { success: true };
+    const result = await deleteCustomer(id);
+    return { success: true, mode: result.mode };
   });
 }

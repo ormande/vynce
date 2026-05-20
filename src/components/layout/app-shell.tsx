@@ -6,6 +6,7 @@ import { PageTransitionWrapper } from "@/components/layout/page-transition-wrapp
 import { auth } from "@/lib/auth";
 import { getNotificationCount } from "@/modules/notifications/service";
 import { getPlatformSettings } from "@/modules/platform-settings/service";
+import { getUnseenPendingTransfersCount } from "@/modules/transfers/service";
 
 export async function AppShell({
   title,
@@ -18,30 +19,36 @@ export async function AppShell({
   pathname: string;
   children: ReactNode;
 }) {
-  const session = await auth();
+  // Carrega sessão e settings em paralelo: ambos são pré-requisitos pro resto.
+  const [session, platformSettings] = await Promise.all([
+    auth(),
+    getPlatformSettings(),
+  ]);
 
-  let transferBadgeCount = 0;
-  let notificationCount = 0;
-  const platformSettings = await getPlatformSettings();
   const singleUnitMode = platformSettings.singleUnitMode;
 
+  // Carrega os dois badges em paralelo. Cada um já é otimizado com count().
+  let transferBadgeCount = 0;
+  let notificationCount = 0;
+
   if (session?.user) {
-    if (!singleUnitMode) {
-      const { getUnseenPendingTransfersCount } = await import(
-        "@/modules/transfers/service"
-      );
-      transferBadgeCount = await getUnseenPendingTransfersCount(
-        session.user.id,
-        session.user.branchIds ?? [],
-      );
-    }
-    notificationCount = await getNotificationCount({
-      userId: session.user.id,
-      roleSlug: session.user.roleSlug,
-      branchIds: session.user.branchIds ?? [],
-      accessAll: session.user.accessAll ?? false,
-      singleUnitMode,
-    });
+    const userId = session.user.id;
+    const branchIds = session.user.branchIds ?? [];
+    const accessAll = session.user.accessAll ?? false;
+    const roleSlug = session.user.roleSlug;
+
+    [transferBadgeCount, notificationCount] = await Promise.all([
+      singleUnitMode
+        ? Promise.resolve(0)
+        : getUnseenPendingTransfersCount(userId, branchIds),
+      getNotificationCount({
+        userId,
+        roleSlug,
+        branchIds,
+        accessAll,
+        singleUnitMode,
+      }),
+    ]);
   }
 
   return (

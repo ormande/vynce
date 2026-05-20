@@ -211,6 +211,7 @@ model Customer {
   cpf         String?      @unique
   address     String?
   notes       String?
+  isActive    Boolean      @default(true)
   sales       Sale[]
   receivables Receivable[]
   payments    Payment[]

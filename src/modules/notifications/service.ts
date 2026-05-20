@@ -143,6 +143,10 @@ export async function getNotificationsForUser(params: {
   );
 }
 
+/**
+ * Versão leve que retorna APENAS a contagem, usando count() em paralelo
+ * em vez de findMany + .length. Usado no badge do sininho a cada navegação.
+ */
 export async function getNotificationCount(params: {
   userId: string;
   roleSlug?: string | null;
@@ -150,6 +154,66 @@ export async function getNotificationCount(params: {
   accessAll: boolean;
   singleUnitMode?: boolean;
 }): Promise<number> {
-  const notifications = await getNotificationsForUser(params);
-  return notifications.length;
+  const { userId, roleSlug, branchIds, accessAll, singleUnitMode = false } = params;
+  const isOwner = roleSlug === "owner" || accessAll;
+
+  const tasks: Promise<number>[] = [];
+
+  // Transferências pendentes
+  if (!singleUnitMode) {
+    if (isOwner) {
+      tasks.push(db.stockTransfer.count({ where: { status: "PENDING" } }));
+    } else if (branchIds.length > 0) {
+      tasks.push(
+        db.stockTransfer.count({
+          where: { status: "PENDING", toBranchId: { in: branchIds } },
+        }),
+      );
+    }
+  }
+
+  // Estoque baixo (filtro via Prisma raw para comparar duas colunas)
+  tasks.push(
+    db.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(*)::bigint AS count
+      FROM "Product"
+      WHERE "status" = 'ACTIVE'
+        AND "stockQuantity" <= "lowStockThreshold"
+    `.then((rows) => Number(rows[0]?.count ?? 0)),
+  );
+
+  // Recebíveis vencidos (somente owners e se módulo habilitado)
+  if (SHOW_RECEIVABLES_MODULE_UI && isOwner) {
+    tasks.push(
+      db.receivable.count({
+        where: {
+          status: {
+            in: [
+              ReceivableStatus.OPEN,
+              ReceivableStatus.PARTIAL,
+              ReceivableStatus.OVERDUE,
+            ],
+          },
+          dueDate: { lt: new Date() },
+        },
+      }),
+    );
+  }
+
+  // Minhas solicitações pendentes (apenas para não-owners; owners já contabilizam tudo acima)
+  if (!singleUnitMode && !isOwner) {
+    tasks.push(
+      db.stockTransfer.count({
+        where: {
+          status: "PENDING",
+          requestedById: userId,
+          // Não conta o que já está incluído no count anterior (toBranchId nas minhas filiais)
+          NOT: branchIds.length > 0 ? { toBranchId: { in: branchIds } } : undefined,
+        },
+      }),
+    );
+  }
+
+  const counts = await Promise.all(tasks);
+  return counts.reduce((acc, n) => acc + n, 0);
 }

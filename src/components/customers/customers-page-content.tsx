@@ -61,7 +61,11 @@ export function CustomersPageContent({
         toast.error("Não foi possível excluir o cliente", { description: data.message });
         return;
       }
-      toast.success("Cliente excluído com sucesso.");
+      toast.success(
+        data?.mode === "soft"
+          ? "Cliente removido da listagem. Histórico de vendas preservado."
+          : "Cliente excluído com sucesso.",
+      );
       setDeletingCustomer(null);
       await refreshCustomers();
     } catch {
@@ -70,9 +74,6 @@ export function CustomersPageContent({
       setDeleting(false);
     }
   }
-
-  const canDelete = (c: CustomerRow) =>
-    c.purchaseHistoryCount === 0 && c.outstandingBalance === 0;
 
   return (
     <>
@@ -166,13 +167,8 @@ export function CustomersPageContent({
                         <button
                           type="button"
                           onClick={() => setDeletingCustomer(customer)}
-                          disabled={!canDelete(customer)}
-                          className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--muted-foreground)] transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30"
-                          title={
-                            canDelete(customer)
-                              ? "Excluir cliente"
-                              : "Cliente com histórico não pode ser excluído"
-                          }
+                          className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--muted-foreground)] transition hover:bg-rose-50 hover:text-rose-600"
+                          title="Excluir cliente"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -203,8 +199,16 @@ export function CustomersPageContent({
         loading={deleting}
         variant="danger"
         title="Excluir cliente"
-        description={`Tem certeza que deseja excluir "${deletingCustomer?.name}"? Esta ação não pode ser desfeita.`}
-        confirmLabel="Excluir"
+        description={
+          deletingCustomer && deletingCustomer.purchaseHistoryCount > 0
+            ? `"${deletingCustomer.name}" tem ${deletingCustomer.purchaseHistoryCount} compra(s) registrada(s). O cliente será removido da listagem, mas o histórico de vendas e recebíveis será preservado.`
+            : `Tem certeza que deseja excluir "${deletingCustomer?.name}"? Esta ação não pode ser desfeita.`
+        }
+        confirmLabel={
+          deletingCustomer && deletingCustomer.purchaseHistoryCount > 0
+            ? "Remover da listagem"
+            : "Excluir"
+        }
       />
     </>
   );

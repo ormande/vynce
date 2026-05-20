@@ -366,4 +366,4 @@ Rodar com `npx tsx prisma/seed.ts` (não `npx prisma db seed` — o campo `prism
 
 ## Permissões
 
-O JWT lê permissões do banco a cada request (callback `jwt` em `src/lib/auth.ts`). Após alterar permissões no banco, não é necessário fazer logout — a próxima navegação já reflete as mudanças.
+O JWT armazena permissões/branches em cache curto. O callback `jwt` em `src/lib/auth.ts` recarrega do banco em três situações: (1) login, (2) trigger explícito `update`, e (3) a cada `JWT_REFRESH_INTERVAL_MS` (30 segundos por padrão). Após alterar permissões no banco, basta aguardar até 30s ou disparar um `update()` da sessão — não é necessário fazer logout.

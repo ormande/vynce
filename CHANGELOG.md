@@ -40,6 +40,28 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Padronização de contraste: texto claro em fundos escuros e vice-versa em todo o sistema.
 - Refatoração de botões em diversas páginas para utilizar componentes padronizados.
 
+## [1.5.0] — 2026-05-20
+
+### Corrigido
+- **Lentidão de navegação entre páginas**: identificadas e resolvidas três causas combinadas que tornavam cada navegação ~8 queries em série antes da renderização.
+  - `AppShell` agora carrega `auth()` + `getPlatformSettings()` em paralelo, e os badges (`transferBadgeCount` + `notificationCount`) também em paralelo via `Promise.all`.
+  - Removido `dynamic import` de `getUnseenPendingTransfersCount` que custava extra a cada render.
+- **`getNotificationCount` reescrito**: antes carregava 4 `findMany` com `include` apenas para retornar `.length`; agora usa 4 `count()` puros em paralelo, incluindo SQL raw para o filtro de estoque baixo (`stockQuantity <= lowStockThreshold`). Redução drástica de tempo e memória.
+- **Cache do JWT (NextAuth)**: o callback `jwt` em `src/lib/auth.ts` recarregava role + permissions + branches do banco em **todas** as navegações. Agora o token mantém cache de 30s (`JWT_REFRESH_INTERVAL_MS`), recarregando apenas em login, em `update()` explícito da sessão ou após o intervalo. Mudanças de permissão continuam refletidas em até 30s sem necessidade de logout.
+
+### Adicionado
+- Campo `isActive` em `Customer` (default `true`) com migration `20260520120000_customer_is_active`.
+- Função `softDeleteCustomer` no repositório de clientes: anonimiza nome, telefone, CPF, endereço e notas, e marca `isActive=false`.
+
+### Alterado
+- **Exclusão de clientes agora sempre funciona**: clientes sem histórico continuam sendo deletados fisicamente; clientes com vendas ou recebíveis em aberto passam por **soft delete** (anonimizados e removidos da listagem) preservando a integridade dos registros financeiros.
+- `listCustomers` filtra apenas clientes ativos por padrão (parâmetro opcional `includeInactive`).
+- API `DELETE /api/customers/[id]` retorna `mode: "soft" | "hard"` para que a UI exiba o toast apropriado.
+- Modal de confirmação de exclusão adapta texto e label do botão conforme o cliente tenha histórico ou não.
+- `CLAUDE.md` atualizado para documentar o novo comportamento de cache do JWT.
+
+---
+
 ## [1.4.0] — 2026-05-20
 
 ### Adicionado

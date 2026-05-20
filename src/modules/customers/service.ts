@@ -13,6 +13,7 @@ import {
   hardDeleteCustomer,
   listCustomers,
   patchCustomer,
+  softDeleteCustomer,
   WALK_IN_SALE_CUSTOMER_PHONE,
 } from "@/modules/customers/repository";
 import { customerSchema } from "@/modules/customers/schemas";
@@ -117,14 +118,22 @@ export async function deleteCustomer(id: string) {
   const customer = await findCustomerWithCounts(id);
   if (!customer) throw new AppError("Cliente não encontrado.", 404);
 
-  if (customer._count.sales > 0 || customer._count.receivables > 0) {
-    throw new AppError(
-      "Não é possível excluir um cliente com histórico de compras ou recebíveis em aberto.",
-      409,
-    );
+  if (customer.phone === WALK_IN_SALE_CUSTOMER_PHONE) {
+    throw new AppError("Este cliente é reservado para vendas avulsas e não pode ser excluído.", 400);
+  }
+
+  const hasHistory =
+    customer._count.sales > 0 || customer._count.receivables > 0;
+
+  if (hasHistory) {
+    // Soft delete: anonimiza e remove da listagem, mas mantém o registro
+    // para preservar a integridade de vendas e recebíveis.
+    await softDeleteCustomer(id);
+    return { mode: "soft" as const };
   }
 
   await hardDeleteCustomer(id);
+  return { mode: "hard" as const };
 }
 
 export async function registerCustomer(input: unknown) {

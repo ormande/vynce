@@ -25,8 +25,16 @@ declare module "next-auth/jwt" {
     permissions?: string[];
     branchIds?: string[];
     accessAll?: boolean;
+    refreshedAt?: number;
   }
 }
+
+/**
+ * Por padrão recarregamos permissões do banco a cada 30 segundos.
+ * Isso garante refresh quase imediato após mudanças de permissão/role
+ * sem disparar uma query pesada em toda navegação.
+ */
+const JWT_REFRESH_INTERVAL_MS = 30_000;
 
 async function getDefaultRole(): Promise<Role | null> {
   return db.role.findFirst({
@@ -70,9 +78,20 @@ export const authOptions: NextAuthOptions = {
 
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       const email = user?.email ?? token.email;
       if (!email) return token;
+
+      // Só recarrega do banco no login, em update explícito, ou após o intervalo.
+      const now = Date.now();
+      const refreshedAt = token.refreshedAt ?? 0;
+      const isFreshLogin = Boolean(user);
+      const isExpired = now - refreshedAt > JWT_REFRESH_INTERVAL_MS;
+      const shouldRefresh = isFreshLogin || trigger === "update" || isExpired;
+
+      if (!shouldRefresh && token.sub) {
+        return token;
+      }
 
       const dbUser = await db.user.findUnique({
         where: { email },
@@ -109,6 +128,7 @@ export const authOptions: NextAuthOptions = {
       token.permissions = [...new Set([...rolePermissions, ...userOverrides])];
       token.branchIds = dbUser.userBranches.map((ub) => ub.branchId);
       token.accessAll = dbUser.userBranches.some((ub) => ub.accessAll);
+      token.refreshedAt = now;
       return token;
     },
     async session({ session, token }) {
