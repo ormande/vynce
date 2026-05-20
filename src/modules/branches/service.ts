@@ -14,6 +14,7 @@ import {
   findUserBranchLink,
   findUserByIdWithRole,
   getLinkedUserIdSetForBranch,
+  searchBranchAssignableUsers,
   searchSellerUsers,
   toggleBranchActive,
   updateBranch,
@@ -125,8 +126,12 @@ export async function addUserToBranch(branchId: string, userId: string) {
   await getBranchById(branchId);
 
   const user = await findUserByIdWithRole(userId);
-  if (!user || user.role?.slug !== "seller") {
-    throw new AppError("Usuário não encontrado ou não possui perfil de vendedor.", 400);
+  const roleSlug = user?.role?.slug;
+  if (!user || (roleSlug !== "seller" && roleSlug !== "owner")) {
+    throw new AppError(
+      "Usuário não encontrado ou não pode ser vinculado a esta unidade.",
+      400,
+    );
   }
 
   // Seller can only be in one branch at a time
@@ -144,7 +149,8 @@ export async function removeUserFromBranch(branchId: string, userId: string) {
   if (!link) {
     throw new AppError("Vínculo não encontrado.", 404);
   }
-  if (link.user.role?.slug !== "seller") {
+  const roleSlug = link.user.role?.slug;
+  if (roleSlug !== "seller" && roleSlug !== "owner") {
     throw new AppError("Este vínculo não pode ser removido por aqui.", 400);
   }
 
@@ -154,6 +160,6 @@ export async function removeUserFromBranch(branchId: string, userId: string) {
 export async function searchEmployeesForBranch(branchId: string, query: string) {
   await getBranchById(branchId);
   const linked = await getLinkedUserIdSetForBranch(branchId);
-  const candidates = await searchSellerUsers(query);
+  const candidates = await searchBranchAssignableUsers(query);
   return candidates.filter((u) => !linked.has(u.id));
 }

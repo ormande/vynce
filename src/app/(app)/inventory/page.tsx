@@ -110,6 +110,7 @@ export default async function InventoryPage({
         stockBranches={stockBranches}
         products={productsResult.items.map((p) => ({ id: p.id, name: p.name }))}
         canAddStock={canAddStock}
+        singleUnitMode={settings.singleUnitMode}
       />
       )}
     </AppShell>

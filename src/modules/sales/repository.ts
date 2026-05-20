@@ -57,7 +57,7 @@ export async function listSalesPaginated(params: {
     db.sale.findMany({
       where: hasWhere ? where : undefined,
       include: saleInclude,
-      orderBy: { soldAt: "desc" },
+      orderBy: [{ createdAt: "desc" }],
       skip,
       take: pageSize,
     }),

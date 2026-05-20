@@ -14,6 +14,7 @@ type Seller = {
   email: string | null;
   image: string | null;
   status: "ACTIVE" | "INVITED" | "DISABLED";
+  roleSlug: string;
   userBranches: {
     branch: {
       id: string;
@@ -26,10 +27,15 @@ export function SellersPageContent({ sellers }: { sellers: Seller[] }) {
   const [showDisabled, setShowDisabled] = useState(false);
 
   const awaitingConfig = sellers.filter(
-    (s) => s.status === "ACTIVE" && s.userBranches.length === 0,
+    (s) =>
+      s.status === "ACTIVE" &&
+      s.userBranches.length === 0 &&
+      s.roleSlug !== "owner",
   );
   const activeSellers = sellers.filter(
-    (s) => s.status === "ACTIVE" && s.userBranches.length > 0,
+    (s) =>
+      s.status === "ACTIVE" &&
+      (s.userBranches.length > 0 || s.roleSlug === "owner"),
   );
   const disabledSellers = sellers.filter((s) => s.status === "DISABLED");
 
@@ -95,7 +101,9 @@ export function SellersPageContent({ sellers }: { sellers: Seller[] }) {
 }
 
 function SellerCard({ seller }: { seller: Seller }) {
-  const branchName = seller.userBranches[0]?.branch.name;
+  const isOwner = seller.roleSlug === "owner";
+  const branchName =
+    seller.userBranches[0]?.branch.name ?? (isOwner ? "Administrador" : undefined);
 
   return (
     <Card className="group relative flex flex-col overflow-visible transition-all duration-200 hover:scale-[1.02] hover:shadow-[0_26px_70px_rgba(15,23,42,0.12)]">
@@ -128,14 +136,15 @@ function SellerCard({ seller }: { seller: Seller }) {
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
+          {isOwner ? <Badge tone="neutral">Proprietário</Badge> : null}
           {branchName ? (
             <div className="flex items-center gap-1.5 rounded-full border border-[var(--border-strong)] bg-white/50 px-3 py-1 text-xs font-medium text-[var(--foreground)]">
               <Building2 className="h-3 w-3 text-[var(--accent)]" />
               {branchName}
             </div>
-          ) : (
+          ) : !isOwner ? (
             <Badge tone="warning">Sem unidade</Badge>
-          )}
+          ) : null}
           <Badge tone={seller.status === "ACTIVE" ? "success" : "neutral"}>
             {seller.status === "ACTIVE" ? "Ativo" : "Desativado"}
           </Badge>

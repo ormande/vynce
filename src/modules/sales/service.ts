@@ -240,17 +240,15 @@ export async function registerSale(
       },
     });
 
-    if (!allowSalesWithoutStock) {
-      for (const item of items) {
-        await applyBranchStockDelta(tx, {
-          branchId: data.branchId,
-          productId: item.product.id,
-          delta: -item.quantity,
-          type: "SALE",
-          performedById: sellerId,
-          note: `Venda ${sale.id} (${branch.name})`,
-        });
-      }
+    for (const item of items) {
+      await applyBranchStockDelta(tx, {
+        branchId: data.branchId,
+        productId: item.product.id,
+        delta: -item.quantity,
+        type: "SALE",
+        performedById: sellerId,
+        note: `Venda ${sale.id} (${branch.name})`,
+      });
     }
 
     if (!isCredit) {
@@ -398,19 +396,15 @@ export async function deleteSale(
     );
   }
 
-  const { allowSalesWithoutStock } = await getPlatformSettings();
-
   return db.$transaction(async (tx) => {
-    if (!allowSalesWithoutStock) {
-      for (const item of sale.items) {
-        await applyBranchStockDelta(tx, {
-          branchId: sale.branchId,
-          productId: item.productId,
-          delta: item.quantity,
-          type: "ADJUSTMENT",
-          note: `Estorno venda excluída ${sale.id}`,
-        });
-      }
+    for (const item of sale.items) {
+      await applyBranchStockDelta(tx, {
+        branchId: sale.branchId,
+        productId: item.productId,
+        delta: item.quantity,
+        type: "RETURN",
+        note: `Estorno venda excluída ${sale.id}`,
+      });
     }
 
     if (sale.receivable) {

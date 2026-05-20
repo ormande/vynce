@@ -40,6 +40,27 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Padronização de contraste: texto claro em fundos escuros e vice-versa em todo o sistema.
 - Refatoração de botões em diversas páginas para utilizar componentes padronizados.
 
+## [1.8.0] — 2026-05-20
+
+### Adicionado
+- **`ReceivableSearchInput`**: campo de recebível em Contas a receber no padrão do buscador de clientes (pesquisa ao focar, painel com scroll e altura limitada, largura total).
+- **Script `scripts/reconcile-stock-from-sales.ts`** (`npm run db:reconcile-stock`): reconcilia vendas antigas que não geraram movimentação `SALE` (modo simulação por padrão; `--apply` grava as baixas). Comando `db:reconcile-stock` em `package.json`.
+
+### Alterado
+- **Vendas**: formulário em largura total com grid responsivo; ao mudar para fiado o nome do cliente permanece; data retroativa mantida após registrar várias vendas do mesmo dia; registros ordenados por `createdAt` (mais recentes primeiro).
+- **Contas a receber**: formulário de pagamento em largura total; dropdown de recebível substituído pelo buscador pesquisável.
+- **Dashboard**: gráfico principal passou a **Faturamento do mês** (série diária do mês corrente, alinhada ao card “Vendas do mês”).
+- **Funcionários**: listagem inclui proprietário (`owner`) com badge, alinhado à aba de relatórios.
+- **Unidades**: busca e vínculo aceitam vendedor e proprietário; equipe da unidade exibe ambos os perfis.
+- **Configurações**: texto de “Permitir vendas sem estoque” esclarece que a opção dispensa apenas a validação de saldo, não a baixa automática.
+
+### Corrigido
+- **Estoque não baixava nas vendas** quando “Permitir vendas sem estoque” estava ativo: a opção agora só ignora a checagem de saldo insuficiente; toda venda continua gerando movimentação `SALE` e decremento na unidade.
+- **Estoque (UI)**: removido card “Itens com estoque baixo”; card “Últimas movimentações” oculto em modo unidade única (`singleUnitMode`).
+- **Unidades**: proprietário não aparecia na busca de vínculo nem podia ser associado à unidade única.
+
+---
+
 ## [1.7.0] — 2026-05-20
 
 ### Adicionado

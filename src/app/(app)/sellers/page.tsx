@@ -36,7 +36,19 @@ export default async function SellersPage() {
       {setupBlock ? (
         <SetupEmptyState block={setupBlock} icon={Users} />
       ) : (
-        <SellersPageContent sellers={sellers} />
+        <SellersPageContent
+          sellers={sellers.map((s) => ({
+            id: s.id,
+            name: s.name,
+            email: s.email,
+            image: s.image,
+            status: s.status,
+            roleSlug: s.role?.slug ?? "seller",
+            userBranches: s.userBranches.map((ub) => ({
+              branch: { id: ub.branch.id, name: ub.branch.name },
+            })),
+          }))}
+        />
       )}
     </AppShell>
   );

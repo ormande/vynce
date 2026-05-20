@@ -148,6 +148,28 @@ export async function searchSellerUsers(query: string) {
   });
 }
 
+/** Vendedores e proprietários vinculáveis a uma unidade. */
+export async function searchBranchAssignableUsers(query: string) {
+  const q = query.trim();
+  if (!q) {
+    return [];
+  }
+
+  return db.user.findMany({
+    where: {
+      role: { slug: { in: ["seller", "owner"] } },
+      status: { not: "DISABLED" },
+      OR: [
+        { name: { contains: q, mode: "insensitive" } },
+        { email: { contains: q, mode: "insensitive" } },
+      ],
+    },
+    select: { id: true, name: true, email: true, image: true },
+    take: 20,
+    orderBy: [{ name: "asc" }],
+  });
+}
+
 export async function findUserBranchLink(userId: string, branchId: string) {
   return db.userBranch.findUnique({
     where: { userId_branchId: { userId, branchId } },

@@ -167,8 +167,13 @@ export function SaleForm({
 
   function handlePaymentMethodChange(value: PaymentMethod) {
     setPaymentMethod(value);
-    if (value !== PaymentMethod.CREDIT) {
-      setSelectedCustomerId("");
+    if (value === PaymentMethod.CREDIT) {
+      if (
+        selectedCustomerId &&
+        !fiadoCustomers.some((c) => c.id === selectedCustomerId)
+      ) {
+        setSelectedCustomerId(fiadoCustomers[0]?.id ?? "");
+      }
     }
   }
 
@@ -221,14 +226,6 @@ export function SaleForm({
       setSaleTotal("");
     }
   }, [productId, catalogTotal, useDiscount]);
-
-  useEffect(() => {
-    if (!isCredit) return;
-    if (fiadoCustomers.length === 0) return;
-    if (!fiadoCustomers.some((c) => c.id === selectedCustomerId)) {
-      setSelectedCustomerId(fiadoCustomers[0].id);
-    }
-  }, [isCredit, fiadoCustomers, selectedCustomerId]);
 
   function handleDiscountChange(value: string) {
     setDiscountAmount(value);
@@ -327,15 +324,16 @@ export function SaleForm({
     setSaleTotal("");
     setUseDiscount(false);
     setDiscountAmount("");
-    setUseCustomSoldAt(false);
-    setSoldAt(format(new Date(), "yyyy-MM-dd"));
+    if (!useCustomSoldAt) {
+      setSoldAt(format(new Date(), "yyyy-MM-dd"));
+    }
     router.refresh();
   }
 
   const branchStockForProduct = productId ? (branchStockByProduct[productId] ?? 0) : 0;
 
   return (
-    <Card>
+    <Card className="w-full">
       <div className="mb-5">
         <h3 className="text-lg font-semibold text-[var(--foreground)]">Registrar venda</h3>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
@@ -344,7 +342,10 @@ export function SaleForm({
         </p>
       </div>
 
-      <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+      <form
+        className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        onSubmit={handleSubmit}
+      >
         {branches.length > 0 ? (
           <div>
             <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">Unidade</label>
@@ -397,7 +398,7 @@ export function SaleForm({
         </div>
 
         {(showCustomerPicker || isCredit) && (
-          <div className={cn(isCredit ? "" : "md:col-span-2")}>
+          <div className="sm:col-span-2 lg:col-span-2">
             <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
               Cliente
               {!isCredit ? (

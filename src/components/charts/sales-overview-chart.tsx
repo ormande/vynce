@@ -34,7 +34,6 @@ export function SalesOverviewChart({ data }: { data: SalesPoint[] }) {
             tickFormatter={(value) =>
               new Date(value).toLocaleDateString("pt-BR", {
                 day: "2-digit",
-                month: "short",
               })
             }
             tick={{ fill: "#607168", fontSize: 12 }}

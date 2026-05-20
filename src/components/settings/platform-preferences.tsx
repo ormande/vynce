@@ -123,8 +123,8 @@ export function PlatformPreferences({
           <label htmlFor="allowSalesWithoutStock" className="text-sm text-[var(--foreground)]">
             <span className="font-medium">Permitir vendas sem estoque</span>
             <span className="mt-1 block text-[var(--muted-foreground)]">
-              Quando ativo, a venda é registrada sem validar nem baixar estoque na unidade. Com
-              desativado, só é possível vender se houver quantidade suficiente na filial selecionada.
+              Quando ativo, permite vender mesmo sem saldo na unidade (o estoque ainda é baixado após
+              a venda). Desativado, bloqueia a venda se não houver quantidade suficiente.
             </span>
           </label>
         </div>

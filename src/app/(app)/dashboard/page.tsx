@@ -78,10 +78,10 @@ export default async function DashboardPage() {
       <Card className="mt-4">
         <div className="mb-4">
           <h3 className="text-xl font-semibold text-[var(--foreground)]">
-            Faturamento da semana
+            Faturamento do mês
           </h3>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-            Total diário dos últimos 7 dias — alinhado ao indicador &quot;Vendas da semana&quot; acima.
+            Total diário em {dashboard.monthLabel} — alinhado ao indicador &quot;Vendas do mês&quot; acima.
           </p>
         </div>
         <SalesOverviewChart data={dashboard.salesSeries} />

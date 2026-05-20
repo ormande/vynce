@@ -53,6 +53,7 @@ export function InventoryPageContent({
   stockBranches,
   products,
   canAddStock,
+  singleUnitMode = false,
 }: {
   items: InventoryItem[];
   total: number;
@@ -65,6 +66,7 @@ export function InventoryPageContent({
   stockBranches: { id: string; name: string }[];
   products: { id: string; name: string }[];
   canAddStock: boolean;
+  singleUnitMode?: boolean;
 }) {
   const [addStockOpen, setAddStockOpen] = useState(false);
   const isBranchView = currentBranch !== "global";
@@ -208,31 +210,7 @@ export function InventoryPageContent({
           </Card>
         )}
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
-            <h3 className="text-xl font-semibold text-[var(--foreground)]">Itens com estoque baixo</h3>
-            <div className="mt-5 space-y-3">
-              {lowStock.length === 0 ? (
-                <p className="text-sm text-[var(--muted-foreground)]">Tudo certo, nenhum item com estoque baixo no momento.</p>
-              ) : (
-                lowStock.map((row) => (
-                  <div key={row.id} className="rounded-3xl border border-[var(--border)] bg-[var(--panel-strong)] px-4 py-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-medium text-[var(--foreground)]">{row.name}</p>
-                        <p className="text-sm text-[var(--muted-foreground)]">mínimo {row.lowStockThreshold} un.</p>
-                        {row.branchName && (
-                          <p className="text-sm text-[var(--muted-foreground)]">{row.branchName}</p>
-                        )}
-                      </div>
-                      <Badge tone="warning">{row.stockQuantity} un.</Badge>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
-
+        {!singleUnitMode ? (
           <Card>
             <h3 className="text-xl font-semibold text-[var(--foreground)]">Últimas movimentações</h3>
             <div className="mt-4 overflow-x-auto">
@@ -281,7 +259,7 @@ export function InventoryPageContent({
               </Table>
             </div>
           </Card>
-        </div>
+        ) : null}
       </div>
     </div>
   );

@@ -15,6 +15,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
     "db:seed": "npm run prisma:seed",
+    "db:reconcile-stock": "tsx scripts/reconcile-stock-from-sales.ts",
     "db:start": "powershell -ExecutionPolicy Bypass -File ./scripts/start-postgres.ps1",
     "postinstall": "prisma generate"
   },

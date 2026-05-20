@@ -164,10 +164,10 @@ export function BranchEmployeesPanel({
       />
       <div>
         <label htmlFor={`branch-emp-search-${branchId}`} className="text-sm font-medium text-[var(--foreground)]">
-          Vincular vendedor
+          Vincular à unidade
         </label>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-          Busque por nome ou e-mail (parcial, sem diferenciar maiúsculas).
+          Busque vendedor ou proprietário por nome ou e-mail.
         </p>
         <div className="relative mt-3">
           <input
@@ -214,7 +214,7 @@ export function BranchEmployeesPanel({
       </div>
 
       <div>
-        <h4 className="text-sm font-semibold text-[var(--foreground)]">Vendedores desta unidade</h4>
+        <h4 className="text-sm font-semibold text-[var(--foreground)]">Equipe desta unidade</h4>
         {actionError ? <p className="mt-2 text-sm text-rose-700">{actionError}</p> : null}
         {employees.length === 0 ? (
           <p className="mt-3 text-sm text-[var(--muted-foreground)]">Nenhum vendedor vinculado ainda.</p>

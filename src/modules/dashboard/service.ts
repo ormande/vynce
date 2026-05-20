@@ -16,40 +16,52 @@ function rangeFromDays(days: number) {
   return start;
 }
 
-/** Agrega vendas por dia (últimos 7 dias), preenchendo dias sem venda com 0. */
-function buildWeeklySalesSeries(
-  sales: { soldAt: Date; total: unknown }[],
-  weekStart: Date,
-) {
-  const byDay = new Map<string, number>();
+function getMonthRange(reference = new Date()) {
+  const start = new Date(reference.getFullYear(), reference.getMonth(), 1);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(reference.getFullYear(), reference.getMonth() + 1, 0);
+  end.setHours(23, 59, 59, 999);
+  return { start, end, daysInMonth: end.getDate() };
+}
 
-  for (let i = 0; i < 7; i++) {
-    const day = new Date(weekStart);
-    day.setDate(weekStart.getDate() + i);
-    byDay.set(startOfDay(day).toISOString(), 0);
+/** Agrega vendas por dia do mês corrente, preenchendo dias sem venda com 0. */
+function buildMonthlySalesSeries(
+  sales: { soldAt: Date; total: unknown }[],
+  monthStart: Date,
+  daysInMonth: number,
+  reference: Date,
+) {
+  const byDay = new Map<number, number>();
+  for (let day = 1; day <= daysInMonth; day++) {
+    byDay.set(day, 0);
   }
 
   for (const sale of sales) {
-    const key = startOfDay(sale.soldAt).toISOString();
-    if (byDay.has(key)) {
-      byDay.set(key, (byDay.get(key) ?? 0) + Number(sale.total));
+    const day = sale.soldAt.getDate();
+    if (sale.soldAt >= monthStart) {
+      byDay.set(day, (byDay.get(day) ?? 0) + Number(sale.total));
     }
   }
 
-  return Array.from(byDay.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, total]) => ({ date, total }));
+  return Array.from({ length: daysInMonth }, (_, index) => {
+    const day = index + 1;
+    const date = new Date(reference.getFullYear(), reference.getMonth(), day);
+    return {
+      date: date.toISOString(),
+      total: byDay.get(day) ?? 0,
+    };
+  });
 }
 
 export async function getDashboardMetrics() {
   const now = new Date();
   const dayStart = rangeFromDays(1);
   const weekStart = rangeFromDays(7);
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const weekEnd = new Date();
   weekEnd.setHours(23, 59, 59, 999);
+  const { start: monthStart, end: monthEnd, daysInMonth } = getMonthRange(now);
 
-  const [todaySales, weekSales, monthSales, openReceivables, topCustomersRaw, weekSalesList] =
+  const [todaySales, weekSales, monthSales, openReceivables, topCustomersRaw, monthSalesList] =
     await Promise.all([
       db.sale.aggregate({
         _sum: { total: true },
@@ -61,7 +73,7 @@ export async function getDashboardMetrics() {
       }),
       db.sale.aggregate({
         _sum: { total: true },
-        where: { soldAt: { gte: monthStart } },
+        where: { soldAt: { gte: monthStart, lte: monthEnd } },
       }),
       db.receivable.findMany({
         include: { customer: true },
@@ -85,7 +97,7 @@ export async function getDashboardMetrics() {
         },
       }),
       db.sale.findMany({
-        where: { soldAt: { gte: weekStart, lte: weekEnd } },
+        where: { soldAt: { gte: monthStart, lte: monthEnd } },
         select: { soldAt: true, total: true },
       }),
     ]);
@@ -119,7 +131,17 @@ export async function getDashboardMetrics() {
     .sort((a, b) => b.totalSpent - a.totalSpent)
     .slice(0, 3);
 
-  const salesSeries = buildWeeklySalesSeries(weekSalesList, weekStart);
+  const salesSeries = buildMonthlySalesSeries(
+    monthSalesList,
+    monthStart,
+    daysInMonth,
+    now,
+  );
+
+  const monthLabel = monthStart.toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+  });
 
   return {
     summary: {
@@ -132,6 +154,7 @@ export async function getDashboardMetrics() {
     receivables: openReceivables,
     topCustomers,
     salesSeries,
+    monthLabel,
   };
 }
 

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { ReceivableSearchInput } from "@/components/receivables/receivable-search-input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -47,15 +48,6 @@ export function PaymentForm({
   const [method, setMethod] = useState<PaymentMethod>(PaymentMethod.PIX);
   const [receivedAt, setReceivedAt] = useState(new Date().toISOString().slice(0, 10));
   const [error, setError] = useState<string | null>(null);
-
-  const receivableOptions = useMemo(
-    () =>
-      receivables.map((receivable) => ({
-        value: receivable.id,
-        label: `${receivable.customer.name} (${formatCurrency(Number(receivable.balanceDue))})`,
-      })),
-    [receivables],
-  );
 
   const paymentOptions = useMemo(
     () => PAYMENT_METHOD_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
@@ -116,30 +108,33 @@ export function PaymentForm({
   }
 
   return (
-    <Card>
+    <Card className="w-full">
       <div className="mb-5">
         <h3 className="text-lg font-semibold text-[var(--foreground)]">Registrar pagamento</h3>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
           Baixa parcial ou total de recebíveis com atualização automática do saldo do cliente.
         </p>
       </div>
-      <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">Recebível</label>
-          <DropdownSelect
+      <form className="grid w-full gap-4 sm:grid-cols-2 xl:grid-cols-3" onSubmit={handleSubmit}>
+        <div className="sm:col-span-2 xl:col-span-3">
+          <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
+            Recebível
+          </label>
+          <ReceivableSearchInput
+            receivables={receivables}
             value={receivableId}
             onChange={setReceivableId}
-            options={receivableOptions}
+            onSelectReceivable={(r) => setAmount(toCurrencyInputValue(r.balanceDue))}
             placeholder={
-              receivableOptions.length === 0
-                ? "Nenhum título em aberto"
-                : "Selecione o recebível"
+              receivables.length === 0 ? "Nenhum título em aberto" : "Buscar título em aberto…"
             }
-            disabled={receivableOptions.length === 0}
+            disabled={receivables.length === 0}
           />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">Forma de pagamento</label>
+          <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
+            Forma de pagamento
+          </label>
           <DropdownSelect
             value={method}
             onChange={(value) => setMethod(value as PaymentMethod)}
@@ -148,26 +143,24 @@ export function PaymentForm({
           />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">Valor recebido</label>
-          <CurrencyInput
-            value={amount}
-            onChange={setAmount}
-            placeholder="R$ 0,00"
-          />
+          <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
+            Valor recebido
+          </label>
+          <CurrencyInput value={amount} onChange={setAmount} placeholder="R$ 0,00" />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">Data do recebimento</label>
+          <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
+            Data do recebimento
+          </label>
           <DatePicker
             value={receivedAt}
             onChange={setReceivedAt}
             placeholder="Data do recebimento"
           />
         </div>
-        {error ? (
-          <p className="text-sm text-rose-600 md:col-span-2">{error}</p>
-        ) : null}
-        <div className="md:col-span-2">
-          <Button type="submit" disabled={receivableOptions.length === 0}>
+        {error ? <p className="text-sm text-rose-600 sm:col-span-2 xl:col-span-3">{error}</p> : null}
+        <div className="sm:col-span-2 xl:col-span-3">
+          <Button type="submit" disabled={receivables.length === 0}>
             Registrar pagamento
           </Button>
         </div>

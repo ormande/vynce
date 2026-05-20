@@ -3,9 +3,10 @@ import { db } from "@/lib/db";
 export async function findAllSellers() {
   return db.user.findMany({
     where: {
-      role: { slug: "seller" },
+      role: { slug: { in: ["seller", "owner"] } },
     },
     include: {
+      role: { select: { slug: true } },
       userBranches: {
         include: {
           branch: true,

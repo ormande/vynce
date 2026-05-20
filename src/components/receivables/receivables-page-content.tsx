@@ -105,7 +105,7 @@ export function ReceivablesPageContent({
       </div>
 
       {tab === "register" ? (
-        <div className="max-w-lg">
+        <div className="w-full">
           <PaymentForm
             receivables={receivablesForPayment.map((receivable) => ({
               id: receivable.id,

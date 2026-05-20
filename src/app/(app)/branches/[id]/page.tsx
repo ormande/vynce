@@ -26,7 +26,10 @@ export default async function BranchDetailPage({
   const stocksPreview = branch.branchStocks.slice(0, 24);
 
   const sellerRows = branch.userBranches
-    .filter((ub) => ub.user.role?.slug === "seller")
+    .filter(
+      (ub) =>
+        ub.user.role?.slug === "seller" || ub.user.role?.slug === "owner",
+    )
     .map((ub) => ({
       userId: ub.user.id,
       name: ub.user.name,
