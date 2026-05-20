@@ -5,12 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { ReceivableSearchInput } from "@/components/receivables/receivable-search-input";
+import { CustomerReceivableSearchInput } from "@/components/receivables/customer-receivable-search-input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { DatePicker } from "@/components/ui/date-picker";
 import { DropdownSelect } from "@/components/ui/dropdown-select";
+import { groupReceivablesByCustomer } from "@/lib/receivable-groups";
 import { formatCurrency } from "@/lib/utils";
 
 const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string }[] = [
@@ -43,7 +44,8 @@ export function PaymentForm({
   }[];
 }) {
   const router = useRouter();
-  const [receivableId, setReceivableId] = useState(receivables[0]?.id ?? "");
+  const groups = useMemo(() => groupReceivablesByCustomer(receivables), [receivables]);
+  const [customerId, setCustomerId] = useState(groups[0]?.customerId ?? "");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<PaymentMethod>(PaymentMethod.PIX);
   const [receivedAt, setReceivedAt] = useState(new Date().toISOString().slice(0, 10));
@@ -54,22 +56,24 @@ export function PaymentForm({
     [],
   );
 
+  const selectedGroup = groups.find((g) => g.customerId === customerId);
+
   useEffect(() => {
-    if (receivables.length === 0) {
-      setReceivableId("");
+    if (groups.length === 0) {
+      setCustomerId("");
       setAmount("");
       return;
     }
 
-    const current = receivables.find((item) => item.id === receivableId);
-    const receivable = current ?? receivables[0];
+    const current = groups.find((g) => g.customerId === customerId);
+    const group = current ?? groups[0];
 
     if (!current) {
-      setReceivableId(receivable.id);
+      setCustomerId(group.customerId);
     }
 
-    setAmount(toCurrencyInputValue(receivable.balanceDue));
-  }, [receivableId, receivables]);
+    setAmount(toCurrencyInputValue(group.totalBalance));
+  }, [customerId, groups]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -81,15 +85,11 @@ export function PaymentForm({
       return;
     }
 
-    const receivable = receivables.find((item) => item.id === receivableId);
-
     const response = await fetch("/api/payments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        receivableId,
-        customerId: receivable?.customerId,
-        saleId: receivable?.saleId ?? undefined,
+        customerId,
         amount: parsedAmount,
         method,
         receivedAt,
@@ -112,24 +112,31 @@ export function PaymentForm({
       <div className="mb-5">
         <h3 className="text-lg font-semibold text-[var(--foreground)]">Registrar pagamento</h3>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-          Baixa parcial ou total de recebíveis com atualização automática do saldo do cliente.
+          Baixa parcial ou total do saldo do cliente. Vários títulos do mesmo cliente são somados
+          automaticamente; o valor recebido é aplicado do vencimento mais antigo ao mais recente.
         </p>
       </div>
       <form className="grid w-full gap-4 sm:grid-cols-2 xl:grid-cols-3" onSubmit={handleSubmit}>
         <div className="sm:col-span-2 xl:col-span-3">
           <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
-            Recebível
+            Cliente
           </label>
-          <ReceivableSearchInput
-            receivables={receivables}
-            value={receivableId}
-            onChange={setReceivableId}
-            onSelectReceivable={(r) => setAmount(toCurrencyInputValue(r.balanceDue))}
+          <CustomerReceivableSearchInput
+            groups={groups}
+            value={customerId}
+            onChange={setCustomerId}
+            onSelectGroup={(group) => setAmount(toCurrencyInputValue(group.totalBalance))}
             placeholder={
-              receivables.length === 0 ? "Nenhum título em aberto" : "Buscar título em aberto…"
+              groups.length === 0 ? "Nenhum título em aberto" : "Buscar cliente com saldo em aberto…"
             }
-            disabled={receivables.length === 0}
+            disabled={groups.length === 0}
           />
+          {selectedGroup && selectedGroup.titleCount > 1 ? (
+            <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+              {selectedGroup.titleCount} títulos em aberto · saldo total{" "}
+              {formatCurrency(selectedGroup.totalBalance)}
+            </p>
+          ) : null}
         </div>
         <div>
           <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
@@ -160,7 +167,7 @@ export function PaymentForm({
         </div>
         {error ? <p className="text-sm text-rose-600 sm:col-span-2 xl:col-span-3">{error}</p> : null}
         <div className="sm:col-span-2 xl:col-span-3">
-          <Button type="submit" disabled={receivables.length === 0}>
+          <Button type="submit" disabled={groups.length === 0}>
             Registrar pagamento
           </Button>
         </div>

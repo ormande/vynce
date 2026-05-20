@@ -5,6 +5,24 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] — 2026-05-20
+
+### Adicionado
+- **Agrupamento por cliente em Contas a receber** (aba Registrar pagamento): títulos em aberto do mesmo cliente são somados em um único saldo (ex.: R$ 40 + R$ 20 → R$ 60).
+  - `groupReceivablesByCustomer` em `src/lib/receivable-groups.ts`.
+  - `CustomerReceivableSearchInput`: busca por cliente com indicação de quantidade de títulos e saldo total.
+- **Pagamento por cliente** (`POST /api/payments` com `customerId`): valor recebido distribuído automaticamente entre os títulos em aberto, do vencimento mais antigo ao mais recente (FIFO).
+
+### Alterado
+- **Formulário de pagamento**: seleção por **cliente** (em vez de título individual); texto de ajuda sobre baixa parcial e rateio FIFO.
+- **Schema de pagamento**: `receivableId` opcional; exige `customerId` ou `receivableId` (fluxo da UI usa apenas `customerId`).
+
+### Notas
+- **Pagamento parcial**: se o valor recebido for menor que o saldo, os títulos ficam `PARTIAL` com `balanceDue` reduzido até nova baixa.
+- **Vencimento**: continua editável por título na aba Registros (`ReceivableEditModal`); títulos quitados não podem ser alterados.
+
+---
+
 ## [1.1.0] — 2026-05-12
 
 ### Adicionado
