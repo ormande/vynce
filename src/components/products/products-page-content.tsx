@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Plus, ChevronLeft, ChevronRight, PackageSearch, Tag } from "lucide-react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,38 @@ export function ProductsPageContent({
   canWrite: boolean;
   roleSlug?: string | null;
 }) {
+  const [productList, setProductList] = useState(products);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  async function handleToggleStatus(e: React.MouseEvent, product: Product) {
+    e.stopPropagation();
+    if (togglingId) return;
+    setTogglingId(product.id);
+    const newStatus = product.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    try {
+      const res = await fetch(`/api/products/${product.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error("Erro ao alterar status", { description: data.message });
+        return;
+      }
+      toast.success(
+        newStatus === "ACTIVE" ? "Produto reativado." : "Produto inativado.",
+      );
+      setProductList((prev) =>
+        prev.map((p) => (p.id === product.id ? { ...p, status: newStatus } : p)),
+      );
+    } catch {
+      toast.error("Não foi possível alterar o status.");
+    } finally {
+      setTogglingId(null);
+    }
+  }
 
   return (
     <>
@@ -99,7 +131,7 @@ export function ProductsPageContent({
                 </tr>
               </thead>
               <tbody>
-                {products.map((product) => (
+                {productList.map((product) => (
                   <tr
                     key={product.id}
                     onClick={() => setSelectedProduct(product)}
@@ -123,9 +155,31 @@ export function ProductsPageContent({
                       {product.stockQuantity}
                     </td>
                     <td className="rounded-r-3xl px-4 py-4 text-right">
-                      <Badge tone={product.status === "ACTIVE" ? "success" : "neutral"}>
-                        {product.status === "ACTIVE" ? "Ativo" : "Inativo"}
-                      </Badge>
+                      {canWrite ? (
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleStatus(e, product)}
+                          disabled={togglingId === product.id}
+                          title={
+                            product.status === "ACTIVE"
+                              ? "Clique para inativar"
+                              : "Clique para reativar"
+                          }
+                          className="transition-opacity disabled:opacity-50"
+                        >
+                          <Badge tone={product.status === "ACTIVE" ? "success" : "neutral"}>
+                            {togglingId === product.id
+                              ? "…"
+                              : product.status === "ACTIVE"
+                                ? "Ativo"
+                                : "Inativo"}
+                          </Badge>
+                        </button>
+                      ) : (
+                        <Badge tone={product.status === "ACTIVE" ? "success" : "neutral"}>
+                          {product.status === "ACTIVE" ? "Ativo" : "Inativo"}
+                        </Badge>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -178,7 +232,7 @@ export function ProductsPageContent({
 
       {selectedProduct && (
         <ProductDetailModal
-          product={selectedProduct}
+          product={productList.find((p) => p.id === selectedProduct.id) ?? selectedProduct}
           roleSlug={roleSlug}
           categories={categories}
           onClose={() => setSelectedProduct(null)}

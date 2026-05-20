@@ -30,11 +30,14 @@ export function CustomerFormModal({
   isOpen,
   onClose,
   onSaved,
+  customer,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onSaved: () => void;
+  customer?: CustomerRow | null;
 }) {
+  const isEditing = Boolean(customer);
   const [mounted, setMounted] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -57,12 +60,20 @@ export function CustomerFormModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    setName("");
-    setPhone("");
-    setCpf("");
-    setAddress("");
-    setNotes("");
-  }, [isOpen]);
+    if (customer) {
+      setName(customer.name);
+      setPhone(formatPhoneMask(customer.phone));
+      setCpf(customer.cpf ? formatCpfMask(customer.cpf) : "");
+      setAddress(customer.address ?? "");
+      setNotes(customer.notes ?? "");
+    } else {
+      setName("");
+      setPhone("");
+      setCpf("");
+      setAddress("");
+      setNotes("");
+    }
+  }, [isOpen, customer]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -88,8 +99,11 @@ export function CustomerFormModal({
 
     setSaving(true);
     try {
-      const res = await fetch("/api/customers", {
-        method: "POST",
+      const url = isEditing ? `/api/customers/${customer!.id}` : "/api/customers";
+      const method = isEditing ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: trimmedName,
@@ -103,11 +117,16 @@ export function CustomerFormModal({
       const data = await res.json();
 
       if (!res.ok) {
-        toast.error("Erro ao cadastrar cliente", { description: data.message });
+        toast.error(
+          isEditing ? "Erro ao atualizar cliente" : "Erro ao cadastrar cliente",
+          { description: data.message },
+        );
         return;
       }
 
-      toast.success("Cliente cadastrado com sucesso!");
+      toast.success(
+        isEditing ? "Cliente atualizado com sucesso!" : "Cliente cadastrado com sucesso!",
+      );
       onSaved();
       onClose();
     } catch {
@@ -125,9 +144,13 @@ export function CustomerFormModal({
       <div className={`relative w-full max-w-lg rounded-[28px] border border-white/20 bg-[var(--panel-strong)] shadow-[0_40px_100px_rgba(0,0,0,0.35)] flex flex-col max-h-[90vh] ${isClosing ? "animate-modal-out" : "animate-modal-in"}`}>
         <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
           <div>
-            <h3 className="text-xl font-semibold text-[var(--foreground)]">Novo cliente</h3>
+            <h3 className="text-xl font-semibold text-[var(--foreground)]">
+              {isEditing ? "Editar cliente" : "Novo cliente"}
+            </h3>
             <p className="text-sm text-[var(--muted-foreground)]">
-              Cadastre clientes para vendas fiado e histórico de compras.
+              {isEditing
+                ? "Atualize os dados de contato e informações do cliente."
+                : "Cadastre clientes para vendas fiado e histórico de compras."}
             </p>
           </div>
           <button
@@ -202,7 +225,7 @@ export function CustomerFormModal({
               Cancelar
             </Button>
             <Button type="submit" disabled={saving} className="rounded-full">
-              {saving ? "Salvando…" : "Cadastrar cliente"}
+              {saving ? "Salvando…" : isEditing ? "Salvar alterações" : "Cadastrar cliente"}
             </Button>
           </div>
         </form>

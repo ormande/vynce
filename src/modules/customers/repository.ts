@@ -48,6 +48,37 @@ export async function createCustomer(data: {
   });
 }
 
+export async function patchCustomer(
+  id: string,
+  data: {
+    name: string;
+    phone: string;
+    cpf?: string | null;
+    address?: string | null;
+    notes?: string | null;
+  },
+) {
+  return db.customer.update({
+    where: { id },
+    data,
+  });
+}
+
+export async function findCustomerWithCounts(id: string) {
+  return db.customer.findUnique({
+    where: { id },
+    include: {
+      _count: {
+        select: { sales: true, receivables: true },
+      },
+    },
+  });
+}
+
+export async function hardDeleteCustomer(id: string) {
+  return db.customer.delete({ where: { id } });
+}
+
 export async function ensureWalkInSaleCustomer() {
   return db.customer.upsert({
     where: { phone: WALK_IN_SALE_CUSTOMER_PHONE },

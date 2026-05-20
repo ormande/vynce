@@ -40,6 +40,25 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Padronização de contraste: texto claro em fundos escuros e vice-versa em todo o sistema.
 - Refatoração de botões em diversas páginas para utilizar componentes padronizados.
 
+## [1.4.0] — 2026-05-20
+
+### Adicionado
+- **CRUD completo de clientes**: edição de dados via modal pré-preenchido, exclusão com confirmação; deleção bloqueada automaticamente quando o cliente possui histórico de compras ou recebíveis.
+- API `PATCH /api/customers/[id]` e `DELETE /api/customers/[id]` com verificação de permissão `customersWrite`.
+- Funções `updateCustomer` e `deleteCustomer` no serviço de clientes; `patchCustomer`, `findCustomerWithCounts` e `hardDeleteCustomer` no repositório.
+
+### Melhorado
+- `CustomerFormModal` unificado para criar e editar: aceita prop `customer?` opcional e alterna entre POST e PATCH; título e labels adaptados ao modo.
+- Tabela de clientes com nova coluna "Ações" (visível apenas para `canWrite`): botão de lápis para editar e botão de lixeira para excluir (desabilitado com tooltip quando há histórico).
+- Tabela de produtos: badge de status vira botão clicável para owners, alternando `ACTIVE`/`INACTIVE` via `PATCH /api/products/[id]` sem precisar abrir o modal de edição; estado atualizado localmente de forma otimista.
+
+### Redesign
+- **Página inicial** (`/`): header minimalista sem card, hero editorial centralizado com tipografia Cormorant Garamond em destaque, trecho "e recebíveis" em verde accent, CTA único com shadow colorida e feature strip horizontal no rodapé — elimina o layout de duas colunas com painel escuro anterior.
+- **Página de login** (`/signin`): layout de painel único centralizado com orb de fundo verde sutil (`blur-[120px]`), wordmark "Vynce" isolado acima do card, botão Google com logotipo SVG oficial em quatro cores (branco, sem sobreposição de cor do sistema), divisor OAuth com `ShieldCheck`, nota sobre permissões — substitui o template de duas colunas genérico.
+- `GoogleSignInButton` redesenhado: logo Google em SVG multicolor, fundo branco, borda sutil, `active:scale-[0.97]`.
+
+---
+
 ## [1.3.0] — 2026-05-20
 
 ### Adicionado

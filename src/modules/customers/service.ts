@@ -9,7 +9,10 @@ import {
 import {
   createCustomer,
   ensureWalkInSaleCustomer,
+  findCustomerWithCounts,
+  hardDeleteCustomer,
   listCustomers,
+  patchCustomer,
   WALK_IN_SALE_CUSTOMER_PHONE,
 } from "@/modules/customers/repository";
 import { customerSchema } from "@/modules/customers/schemas";
@@ -72,6 +75,56 @@ export async function getCustomersForSaleForm() {
       },
     ],
   };
+}
+
+export async function updateCustomer(id: string, input: unknown) {
+  if (!SHOW_CUSTOMERS_MODULE_UI) {
+    throw new AppError("Módulo de clientes indisponível.", 404);
+  }
+
+  const data = customerSchema.parse(input);
+  const phoneDigits = onlyDigits(data.phone);
+  const cpfDigits = data.cpf ? onlyDigits(data.cpf) : "";
+
+  if (phoneDigits === WALK_IN_SALE_CUSTOMER_PHONE) {
+    throw new AppError("Este telefone é reservado para vendas avulsas.", 400);
+  }
+
+  try {
+    return await patchCustomer(id, {
+      name: data.name,
+      phone: phoneDigits,
+      cpf: cpfDigits || null,
+      address: data.address || null,
+      notes: data.notes || null,
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      throw new AppError("Já existe um cliente com este telefone ou CPF.", 409);
+    }
+    throw error;
+  }
+}
+
+export async function deleteCustomer(id: string) {
+  if (!SHOW_CUSTOMERS_MODULE_UI) {
+    throw new AppError("Módulo de clientes indisponível.", 404);
+  }
+
+  const customer = await findCustomerWithCounts(id);
+  if (!customer) throw new AppError("Cliente não encontrado.", 404);
+
+  if (customer._count.sales > 0 || customer._count.receivables > 0) {
+    throw new AppError(
+      "Não é possível excluir um cliente com histórico de compras ou recebíveis em aberto.",
+      409,
+    );
+  }
+
+  await hardDeleteCustomer(id);
 }
 
 export async function registerCustomer(input: unknown) {
