@@ -3,10 +3,12 @@ import { Prisma, ReceivableStatus, SalePaymentStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import {
+  findReceivableById,
   listReceivables,
   listReceivablesForPayment,
+  listReceivablesPaginated,
 } from "@/modules/payments/repository";
-import { paymentSchema } from "@/modules/payments/schemas";
+import { paymentSchema, receivableUpdateSchema } from "@/modules/payments/schemas";
 
 function mapReceivableFlags(
   receivables: Awaited<ReturnType<typeof listReceivables>>,
@@ -26,6 +28,18 @@ function mapReceivableFlags(
 export async function getReceivables(search?: string) {
   const receivables = await listReceivables(search);
   return mapReceivableFlags(receivables);
+}
+
+export async function getReceivablesPaginated(params: {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const result = await listReceivablesPaginated(params);
+  return {
+    ...result,
+    items: mapReceivableFlags(result.items),
+  };
 }
 
 export async function getReceivablesForPayment(search?: string) {
@@ -99,4 +113,72 @@ export async function registerPayment(input: unknown, createdById?: string) {
 
     return payment;
   });
+}
+
+export async function updateReceivable(id: string, input: unknown) {
+  const data = receivableUpdateSchema.parse(input);
+  const receivable = await findReceivableById(id);
+
+  if (!receivable) {
+    throw new AppError("Recebível não encontrado.", 404);
+  }
+
+  if (receivable.status === ReceivableStatus.PAID) {
+    throw new AppError("Não é possível editar um título já quitado.", 400);
+  }
+
+  const dueDate = new Date(`${data.dueDate}T12:00:00`);
+  if (Number.isNaN(dueDate.getTime())) {
+    throw new AppError("Data de vencimento inválida.", 400);
+  }
+
+  const now = new Date();
+  const status =
+    Number(receivable.paidAmount) > 0
+      ? ReceivableStatus.PARTIAL
+      : dueDate < now
+        ? ReceivableStatus.OVERDUE
+        : ReceivableStatus.OPEN;
+
+  const updated = await db.receivable.update({
+    where: { id },
+    data: {
+      dueDate,
+      notes: data.notes?.trim() ? data.notes.trim() : null,
+      status,
+    },
+    include: { customer: true, sale: true, payments: true },
+  });
+
+  if (receivable.saleId) {
+    await db.sale.update({
+      where: { id: receivable.saleId },
+      data: { dueDate },
+    });
+  }
+
+  return updated;
+}
+
+export async function deleteReceivable(id: string) {
+  const receivable = await findReceivableById(id);
+
+  if (!receivable) {
+    throw new AppError("Recebível não encontrado.", 404);
+  }
+
+  if (Number(receivable.paidAmount) > 0) {
+    throw new AppError(
+      "Este título possui pagamentos registrados. Estorne antes de excluir.",
+      409,
+    );
+  }
+
+  if (receivable.saleId) {
+    const { deleteSale } = await import("@/modules/sales/service");
+    await deleteSale(receivable.saleId);
+    return;
+  }
+
+  await db.receivable.delete({ where: { id } });
 }

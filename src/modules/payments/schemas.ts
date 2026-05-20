@@ -10,3 +10,13 @@ export const paymentSchema = z.object({
   receivedAt: z.string().min(1),
   note: z.string().optional().or(z.literal("")),
 });
+
+const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+export const receivableUpdateSchema = z.object({
+  dueDate: z
+    .string()
+    .min(1, "Informe a data de vencimento.")
+    .refine((v) => isoDateRegex.test(v), "Data inválida."),
+  notes: z.string().optional().or(z.literal("")),
+});

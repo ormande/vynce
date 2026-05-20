@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Pencil, Plus, Power, Tag, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -17,6 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table } from "@/components/ui/table";
+import { ClientTablePagination } from "@/components/ui/client-table-pagination";
+import { paginateArray } from "@/lib/pagination";
 
 export function CategoriesPageContent({
   categories: initialCategories,
@@ -31,6 +33,18 @@ export function CategoriesPageContent({
   const [editing, setEditing] = useState<CategoryRow | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<CategoryRow | null>(null);
   const [loadingAction, setLoadingAction] = useState(false);
+  const [page, setPage] = useState(1);
+
+  const paginated = useMemo(
+    () => paginateArray(categories, page),
+    [categories, page],
+  );
+
+  useEffect(() => {
+    if (page > paginated.totalPages) {
+      setPage(1);
+    }
+  }, [categories.length, page, paginated.totalPages]);
 
   function openCreate() {
     setEditing(null);
@@ -160,7 +174,7 @@ export function CategoriesPageContent({
               </tr>
             </thead>
             <tbody>
-              {categories.map((category) => (
+              {paginated.items.map((category) => (
                 <tr
                   key={category.id}
                   className="rounded-3xl bg-[var(--panel-strong)] text-center transition-colors hover:bg-white shadow-sm hover:shadow-md"
@@ -219,6 +233,11 @@ export function CategoriesPageContent({
               ))}
             </tbody>
           </Table>
+          <ClientTablePagination
+            page={paginated.page}
+            totalPages={paginated.totalPages}
+            onPageChange={setPage}
+          />
         </Card>
       )}
 

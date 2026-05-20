@@ -11,7 +11,7 @@ export async function listProducts(params?: {
   pageSize?: number;
 }) {
   const page = params?.page ?? 1;
-  const pageSize = params?.pageSize ?? 20;
+  const pageSize = params?.pageSize ?? 10;
   const skip = (page - 1) * pageSize;
 
   const where: Prisma.ProductWhereInput = {

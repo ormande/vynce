@@ -40,6 +40,28 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Padronização de contraste: texto claro em fundos escuros e vice-versa em todo o sistema.
 - Refatoração de botões em diversas páginas para utilizar componentes padronizados.
 
+## [1.7.0] — 2026-05-20
+
+### Adicionado
+- **Vendas em abas** (`/sales?tab=`): aba **Registrar venda** (somente formulário) e aba **Registros** (tabela paginada com coluna Cliente, editar e excluir).
+  - `SalesPageContent` com navegação no padrão de Estoque (`Link` + `cn()`).
+  - `SaleEditModal`: edição de cliente, data da venda, vencimento (fiado) e observações; itens em somente leitura.
+  - APIs `PATCH` e `DELETE` em `/api/sales/[id]`; `updateSale` e `deleteSale` no serviço (estorno de estoque na exclusão; bloqueio se fiado com pagamentos).
+- **Contas a receber em abas** (`/receivables?tab=`): aba **Registrar pagamento** e aba **Registros** (tabela com cliente, paginação, editar e excluir).
+  - `ReceivableEditModal` para vencimento e observações.
+  - APIs `PATCH` e `DELETE` em `/api/receivables/[id]`; exclusão de título com venda vinculada remove a venda fiado correspondente.
+- **Paginação padronizada (10 itens)**: `DEFAULT_PAGE_SIZE` em `src/lib/pagination.ts`, `TablePagination` (URL) e `ClientTablePagination` (estado local).
+- **`CustomerSearchInput`** extraído para `src/components/sales/customer-search-input.tsx` (reutilizado no formulário e no modal de edição de venda).
+
+### Alterado
+- **Dashboard**: gráfico de faturamento da semana agrega vendas **por dia** (7 dias, zeros nos dias sem venda), alinhado ao indicador “Vendas da semana”; top clientes limitado a **3**; contas a receber limitadas a **3** títulos em aberto; card de estoque baixo removido; layout com gráfico em largura total e cards inferiores meio a meio.
+- **Paginação 10 itens** em produtos (default do repositório), clientes, categorias, estoque, vendas (registros) e recebíveis (registros). Produtos passou de 20 para 10 por página.
+
+### Corrigido
+- Gráfico “Faturamento da semana” exibia um ponto por venda em vez do total diário, distorcendo a leitura do faturamento.
+
+---
+
 ## [1.6.0] — 2026-05-20
 
 ### Adicionado

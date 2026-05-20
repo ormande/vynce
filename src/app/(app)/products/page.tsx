@@ -38,7 +38,7 @@ export default async function ProductsPage({
     getPlatformSettings(),
     getProducts({
       page,
-      pageSize: 20,
+      pageSize: 10,
       status: "ALL",
       search,
     }),

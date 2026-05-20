@@ -75,3 +75,25 @@ export const saleSchema = z
   });
 
 export type SaleInput = z.infer<typeof saleSchema>;
+
+export const saleUpdateSchema = z
+  .object({
+    customerId: z.string().min(1, "Selecione o cliente."),
+    useCustomSoldAt: z.boolean().default(false),
+    soldAt: z.string().optional().or(z.literal("")),
+    dueDate: z.string().optional().or(z.literal("")),
+    notes: z.string().optional().or(z.literal("")),
+  })
+  .superRefine((data, ctx) => {
+    if (data.useCustomSoldAt) {
+      if (!data.soldAt || !isoDateRegex.test(data.soldAt)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Informe a data da venda.",
+          path: ["soldAt"],
+        });
+      }
+    }
+  });
+
+export type SaleUpdateInput = z.infer<typeof saleUpdateSchema>;

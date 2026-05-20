@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, ChevronLeft, ChevronRight, PackageSearch, Tag } from "lucide-react";
+import { Plus, PackageSearch, Tag } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ui/action-button";
 import { Card } from "@/components/ui/card";
 import { Table } from "@/components/ui/table";
+import { TablePagination } from "@/components/ui/table-pagination";
 import { formatCurrency } from "@/lib/utils";
 import { ProductDetailModal } from "./product-detail-modal";
 
@@ -187,46 +188,7 @@ export function ProductsPageContent({
             </Table>
           </Card>
 
-          {totalPages > 1 && (
-            <div className="mt-8 flex items-center justify-between border-t border-[var(--border)] pt-6">
-              <p className="text-sm text-[var(--muted-foreground)]">
-                Página <span className="font-medium text-[var(--foreground)]">{page}</span> de{" "}
-                <span className="font-medium text-[var(--foreground)]">{totalPages}</span>
-              </p>
-              <div className="flex gap-2">
-                {page > 1 ? (
-                  <Link href={`/products?page=${page - 1}`} className="inline-flex items-center justify-center rounded-2xl px-3 py-1.5 text-xs font-semibold tracking-[0.01em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] border border-[var(--border-strong)] bg-white/80 text-[var(--foreground)] hover:bg-[var(--panel-strong)] cursor-pointer">
-                    <ChevronLeft className="mr-1 h-4 w-4" />
-                    Anterior
-                  </Link>
-                ) : (
-                  <Button
-                    variant="secondary"
-                    className="px-3 py-1.5 text-xs"
-                    disabled
-                  >
-                    <ChevronLeft className="mr-1 h-4 w-4" />
-                    Anterior
-                  </Button>
-                )}
-                {page < totalPages ? (
-                  <Link href={`/products?page=${page + 1}`} className="inline-flex items-center justify-center rounded-2xl px-3 py-1.5 text-xs font-semibold tracking-[0.01em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] border border-[var(--border-strong)] bg-white/80 text-[var(--foreground)] hover:bg-[var(--panel-strong)] cursor-pointer">
-                    Próximo
-                    <ChevronRight className="ml-1 h-4 w-4" />
-                  </Link>
-                ) : (
-                  <Button
-                    variant="secondary"
-                    className="px-3 py-1.5 text-xs"
-                    disabled
-                  >
-                    Próximo
-                    <ChevronRight className="ml-1 h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
+          <TablePagination page={page} totalPages={totalPages} hrefBase="/products" />
         </>
       )}
 

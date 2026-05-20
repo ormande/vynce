@@ -13,14 +13,23 @@ import { ActionButton } from "@/components/ui/action-button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Table } from "@/components/ui/table";
+import { TablePagination } from "@/components/ui/table-pagination";
 import { cn, formatCpfDisplay, formatCurrency, formatPhoneDisplay } from "@/lib/utils";
 import { toast } from "sonner";
 
 export function CustomersPageContent({
   customers: initialCustomers,
+  page,
+  totalPages,
+  totalCount,
+  searchQuery = "",
   canWrite,
 }: {
   customers: CustomerRow[];
+  page: number;
+  totalPages: number;
+  totalCount: number;
+  searchQuery?: string;
   canWrite: boolean;
 }) {
   const router = useRouter();
@@ -79,7 +88,7 @@ export function CustomersPageContent({
     <>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="text-sm text-[var(--muted-foreground)]">
-          {customers.length} cliente(s) cadastrado(s).
+          {totalCount} cliente(s) cadastrado(s).
         </p>
         {canWrite ? (
           <ActionButton icon={Plus} onClick={handleOpenCreate}>
@@ -179,6 +188,11 @@ export function CustomersPageContent({
               ))}
             </tbody>
           </Table>
+          <TablePagination
+            page={page}
+            totalPages={totalPages}
+            hrefBase={searchQuery ? `/customers?q=${encodeURIComponent(searchQuery)}` : "/customers"}
+          />
         </Card>
       )}
 
