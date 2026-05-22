@@ -10,14 +10,10 @@ import {
   YAxis,
 } from "recharts";
 
+import { formatMonthlyChartDateLabel, type MonthlyChartPoint } from "@/lib/monthly-series";
 import { formatCurrency } from "@/lib/utils";
 
-type SalesPoint = {
-  date: string;
-  total: number;
-};
-
-export function SalesOverviewChart({ data }: { data: SalesPoint[] }) {
+export function SalesOverviewChart({ data }: { data: MonthlyChartPoint[] }) {
   return (
     <div className="h-72 w-full">
       <ResponsiveContainer width="100%" height={288} minWidth={0}>
@@ -30,15 +26,11 @@ export function SalesOverviewChart({ data }: { data: SalesPoint[] }) {
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#d8dfdb" vertical={false} />
           <XAxis
-            dataKey="date"
-            tickFormatter={(value) =>
-              new Date(value).toLocaleDateString("pt-BR", {
-                day: "2-digit",
-              })
-            }
+            dataKey="label"
             tick={{ fill: "#607168", fontSize: 12 }}
             axisLine={false}
             tickLine={false}
+            interval="preserveStartEnd"
           />
           <YAxis
             tickFormatter={(value) => `R$ ${value}`}
@@ -48,12 +40,11 @@ export function SalesOverviewChart({ data }: { data: SalesPoint[] }) {
           />
           <Tooltip
             formatter={(value) => formatCurrency(Number(value ?? 0))}
-            labelFormatter={(label) =>
-              new Date(label).toLocaleDateString("pt-BR", {
-                day: "2-digit",
-                month: "long",
-              })
-            }
+            labelFormatter={(_, payload) => {
+              const point = payload?.[0]?.payload as MonthlyChartPoint | undefined;
+              if (!point?.dateKey) return "";
+              return formatMonthlyChartDateLabel(point.dateKey);
+            }}
           />
           <Area
             type="monotone"

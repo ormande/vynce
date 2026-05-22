@@ -5,6 +5,22 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0] — 2026-05-20
+
+### Adicionado
+- **Gráfico de fluxo de caixa** no Dashboard e em Relatórios → Empresa: valores recebidos por dia (`Payment.receivedAt`), separado do gráfico de vendas.
+- Utilitários de calendário em Brasília (`src/lib/brazil-dates.ts`, `src/lib/monthly-series.ts`) e testes em `src/tests/brazil-dates.test.ts`.
+
+### Alterado
+- **Gráficos mensais**: todos os dias do mês (28–31) sempre visíveis; agrupamento por data civil em `America/Sao_Paulo` (independente do fuso do servidor).
+- **Dashboard / Relatórios**: gráfico de vendas renomeado para **Vendas por dia** (data de registro da venda, `soldAt`); fiado pendente permanece no dia da venda.
+- **`soldAt` e `receivedAt`**: datas `yyyy-MM-dd` gravadas ao meio-dia em Brasília; formulário de pagamento usa data padrão no fuso brasileiro.
+
+### Corrigido
+- **Gráficos com um dia a mais**: causado por `getDate()` em UTC no servidor e `toISOString()` nos tooltips — vendas noturnas no Brasil deixam de cair no dia seguinte.
+
+---
+
 ## [1.11.0] — 2026-05-20
 
 ### Adicionado

@@ -1,5 +1,6 @@
 import { Prisma, ReceivableStatus, SalePaymentStatus } from "@prisma/client";
 
+import { parseBrazilDateInput } from "@/lib/brazil-dates";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import {
@@ -59,7 +60,7 @@ async function applyPaymentToReceivable(
       amount: new Prisma.Decimal(amount),
       premiumAmount: new Prisma.Decimal(premiumAmount),
       method: data.method,
-      receivedAt: new Date(data.receivedAt),
+      receivedAt: parseBrazilDateInput(data.receivedAt),
       note: data.note || undefined,
     },
   });
@@ -70,7 +71,7 @@ async function applyPaymentToReceivable(
       paidAmount: new Prisma.Decimal(nextPaid),
       balanceDue: new Prisma.Decimal(Math.max(nextBalance, 0)),
       status,
-      lastPaymentAt: new Date(data.receivedAt),
+      lastPaymentAt: parseBrazilDateInput(data.receivedAt),
     },
   });
 

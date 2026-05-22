@@ -10,20 +10,17 @@ import {
   YAxis,
 } from "recharts";
 
+import { formatMonthlyChartDateLabel, type MonthlyChartPoint } from "@/lib/monthly-series";
 import { formatCurrency } from "@/lib/utils";
-
-type MonthlySalesPoint = {
-  label: string;
-  date: string;
-  total: number;
-};
 
 export function MonthlySalesChart({
   data,
   monthLabel,
+  barColor = "#315b4d",
 }: {
-  data: MonthlySalesPoint[];
+  data: MonthlyChartPoint[];
   monthLabel: string;
+  barColor?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -54,15 +51,12 @@ export function MonthlySalesChart({
               cursor={{ fill: "rgba(49, 91, 77, 0.08)" }}
               formatter={(value) => formatCurrency(Number(value ?? 0))}
               labelFormatter={(_, payload) => {
-                const point = payload?.[0]?.payload as MonthlySalesPoint | undefined;
-                if (!point?.date) return "";
-                return new Date(point.date).toLocaleDateString("pt-BR", {
-                  day: "2-digit",
-                  month: "long",
-                });
+                const point = payload?.[0]?.payload as MonthlyChartPoint | undefined;
+                if (!point?.dateKey) return "";
+                return formatMonthlyChartDateLabel(point.dateKey);
               }}
             />
-            <Bar dataKey="total" fill="#315b4d" radius={[8, 8, 0, 0]} maxBarSize={28} />
+            <Bar dataKey="total" fill={barColor} radius={[8, 8, 0, 0]} maxBarSize={28} />
           </BarChart>
         </ResponsiveContainer>
       </div>

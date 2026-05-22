@@ -64,17 +64,33 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <Card className="mt-4">
-        <div className="mb-4">
-          <h3 className="text-xl font-semibold text-[var(--foreground)]">
-            Faturamento do mês
-          </h3>
-          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-            Total diário em {dashboard.monthLabel} — alinhado ao indicador &quot;Vendas do mês&quot; acima.
-          </p>
-        </div>
-        <SalesOverviewChart data={dashboard.salesSeries} />
-      </Card>
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        <Card>
+          <div className="mb-4">
+            <h3 className="text-xl font-semibold text-[var(--foreground)]">
+              Vendas por dia
+            </h3>
+            <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+              Data em que a venda foi registrada ({dashboard.monthLabel}) — inclui fiado e pendente no
+              dia da venda, não no recebimento.
+            </p>
+          </div>
+          <SalesOverviewChart data={dashboard.salesSeries} />
+        </Card>
+
+        <Card>
+          <div className="mb-4">
+            <h3 className="text-xl font-semibold text-[var(--foreground)]">
+              Fluxo de caixa
+            </h3>
+            <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+              Valores recebidos por dia ({dashboard.monthLabel}) — quando o pagamento entrou, inclusive
+              baixas de contas a receber.
+            </p>
+          </div>
+          <SalesOverviewChart data={dashboard.cashFlowSeries} />
+        </Card>
+      </div>
 
       <div
         className={cn(

@@ -17,7 +17,12 @@ type CompanyReports = {
   };
   monthLabel: string;
   monthlySeries: {
-    date: string;
+    dateKey: string;
+    label: string;
+    total: number;
+  }[];
+  cashFlowSeries: {
+    dateKey: string;
     label: string;
     total: number;
   }[];
@@ -95,15 +100,32 @@ export function ReportsPageContent({
             </Card>
           </div>
 
-          <Card>
-            <h3 className="text-xl font-semibold text-[var(--foreground)]">Vendas do mês</h3>
-            <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-              Faturamento diário no mês corrente.
-            </p>
-            <div className="mt-6">
-              <MonthlySalesChart data={company.monthlySeries} monthLabel={company.monthLabel} />
-            </div>
-          </Card>
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Card>
+              <h3 className="text-xl font-semibold text-[var(--foreground)]">Vendas por dia</h3>
+              <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                Data da venda registrada no sistema — todos os dias do mês, mesmo sem movimento.
+              </p>
+              <div className="mt-6">
+                <MonthlySalesChart data={company.monthlySeries} monthLabel={company.monthLabel} />
+              </div>
+            </Card>
+
+            <Card>
+              <h3 className="text-xl font-semibold text-[var(--foreground)]">Fluxo de caixa</h3>
+              <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                Pagamentos recebidos por dia — fiado e parcelas entram no dia em que o dinheiro foi
+                recebido.
+              </p>
+              <div className="mt-6">
+                <MonthlySalesChart
+                  data={company.cashFlowSeries}
+                  monthLabel={company.monthLabel}
+                  barColor="#4a7c6a"
+                />
+              </div>
+            </Card>
+          </div>
         </>
       ) : null}
 

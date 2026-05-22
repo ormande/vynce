@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { DatePicker } from "@/components/ui/date-picker";
 import { DropdownSelect } from "@/components/ui/dropdown-select";
+import { toBrazilDateKey } from "@/lib/brazil-dates";
 import { groupReceivablesByCustomer } from "@/lib/receivable-groups";
 import { formatCurrency } from "@/lib/utils";
 
@@ -48,7 +49,7 @@ export function PaymentForm({
   const [customerId, setCustomerId] = useState(groups[0]?.customerId ?? "");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<PaymentMethod>(PaymentMethod.PIX);
-  const [receivedAt, setReceivedAt] = useState(new Date().toISOString().slice(0, 10));
+  const [receivedAt, setReceivedAt] = useState(() => toBrazilDateKey(new Date()));
   const [error, setError] = useState<string | null>(null);
 
   const paymentOptions = useMemo(

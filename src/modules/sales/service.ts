@@ -5,6 +5,7 @@ import {
   SalePaymentStatus,
 } from "@prisma/client";
 
+import { brazilNoonFromDateKey } from "@/lib/brazil-dates";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import {
@@ -37,7 +38,7 @@ export async function getSalesPaginated(
 
 function resolveSoldAt(data: { useCustomSoldAt: boolean; soldAt?: string }) {
   if (data.useCustomSoldAt && data.soldAt) {
-    const parsed = new Date(`${data.soldAt}T12:00:00`);
+    const parsed = brazilNoonFromDateKey(data.soldAt);
     if (Number.isNaN(parsed.getTime())) {
       throw new AppError("Data da venda inválida.", 400);
     }
@@ -308,7 +309,7 @@ export async function updateSale(
 
   let soldAt = sale.soldAt;
   if (data.useCustomSoldAt && data.soldAt) {
-    const parsed = new Date(`${data.soldAt}T12:00:00`);
+    const parsed = brazilNoonFromDateKey(data.soldAt);
     if (Number.isNaN(parsed.getTime())) {
       throw new AppError("Data da venda inválida.", 400);
     }

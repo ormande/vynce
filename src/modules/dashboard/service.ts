@@ -1,67 +1,31 @@
 import { ReceivableStatus } from "@prisma/client";
 
+import {
+  brazilEndOfDay,
+  brazilStartOfDay,
+  getBrazilMonthWindow,
+  shiftBrazilDateKey,
+  toBrazilDateKey,
+} from "@/lib/brazil-dates";
 import { db } from "@/lib/db";
+import { buildMonthlyChartSeries } from "@/lib/monthly-series";
 import { WALK_IN_SALE_CUSTOMER_PHONE } from "@/modules/customers/repository";
 
-function startOfDay(date: Date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
 function rangeFromDays(days: number) {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() - days + 1);
-  return start;
-}
-
-function getMonthRange(reference = new Date()) {
-  const start = new Date(reference.getFullYear(), reference.getMonth(), 1);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(reference.getFullYear(), reference.getMonth() + 1, 0);
-  end.setHours(23, 59, 59, 999);
-  return { start, end, daysInMonth: end.getDate() };
-}
-
-/** Agrega vendas por dia do mês corrente, preenchendo dias sem venda com 0. */
-function buildMonthlySalesSeries(
-  sales: { soldAt: Date; total: unknown }[],
-  monthStart: Date,
-  daysInMonth: number,
-  reference: Date,
-) {
-  const byDay = new Map<number, number>();
-  for (let day = 1; day <= daysInMonth; day++) {
-    byDay.set(day, 0);
-  }
-
-  for (const sale of sales) {
-    const day = sale.soldAt.getDate();
-    if (sale.soldAt >= monthStart) {
-      byDay.set(day, (byDay.get(day) ?? 0) + Number(sale.total));
-    }
-  }
-
-  return Array.from({ length: daysInMonth }, (_, index) => {
-    const day = index + 1;
-    const date = new Date(reference.getFullYear(), reference.getMonth(), day);
-    return {
-      date: date.toISOString(),
-      total: byDay.get(day) ?? 0,
-    };
-  });
+  const todayKey = toBrazilDateKey(new Date());
+  const startKey = shiftBrazilDateKey(todayKey, -(days - 1));
+  return {
+    start: brazilStartOfDay(startKey),
+    end: brazilEndOfDay(todayKey),
+  };
 }
 
 export async function getDashboardMetrics() {
-  const now = new Date();
-  const dayStart = rangeFromDays(1);
-  const weekStart = rangeFromDays(7);
-  const weekEnd = new Date();
-  weekEnd.setHours(23, 59, 59, 999);
-  const { start: monthStart, end: monthEnd, daysInMonth } = getMonthRange(now);
+  const monthWindow = getBrazilMonthWindow();
+  const { start: dayStart } = rangeFromDays(1);
+  const { start: weekStart, end: weekEnd } = rangeFromDays(7);
 
-  const [todaySales, weekSales, monthSales, openReceivables, topCustomersRaw, monthSalesList] =
+  const [todaySales, weekSales, monthSales, openReceivables, topCustomersRaw, monthSalesList, monthPaymentsList] =
     await Promise.all([
       db.sale.aggregate({
         _sum: { total: true },
@@ -73,7 +37,7 @@ export async function getDashboardMetrics() {
       }),
       db.sale.aggregate({
         _sum: { total: true },
-        where: { soldAt: { gte: monthStart, lte: monthEnd } },
+        where: { soldAt: { gte: monthWindow.start, lte: monthWindow.end } },
       }),
       db.receivable.findMany({
         include: { customer: true },
@@ -97,8 +61,12 @@ export async function getDashboardMetrics() {
         },
       }),
       db.sale.findMany({
-        where: { soldAt: { gte: monthStart, lte: monthEnd } },
+        where: { soldAt: { gte: monthWindow.start, lte: monthWindow.end } },
         select: { soldAt: true, total: true },
+      }),
+      db.payment.findMany({
+        where: { receivedAt: { gte: monthWindow.start, lte: monthWindow.end } },
+        select: { receivedAt: true, amount: true },
       }),
     ]);
 
@@ -131,17 +99,26 @@ export async function getDashboardMetrics() {
     .sort((a, b) => b.totalSpent - a.totalSpent)
     .slice(0, 3);
 
-  const salesSeries = buildMonthlySalesSeries(
-    monthSalesList,
-    monthStart,
-    daysInMonth,
-    now,
+  const salesSeries = buildMonthlyChartSeries(
+    monthSalesList.map((sale) => ({
+      at: sale.soldAt,
+      amount: Number(sale.total),
+    })),
+    monthWindow,
   );
 
-  const monthLabel = monthStart.toLocaleDateString("pt-BR", {
-    month: "long",
-    year: "numeric",
-  });
+  const cashFlowSeries = buildMonthlyChartSeries(
+    monthPaymentsList.map((payment) => ({
+      at: payment.receivedAt,
+      amount: Number(payment.amount),
+    })),
+    monthWindow,
+  );
+
+  const monthLabel = new Date(monthWindow.year, monthWindow.month - 1, 1).toLocaleDateString(
+    "pt-BR",
+    { month: "long", year: "numeric" },
+  );
 
   return {
     summary: {
@@ -154,6 +131,7 @@ export async function getDashboardMetrics() {
     receivables: openReceivables,
     topCustomers,
     salesSeries,
+    cashFlowSeries,
     monthLabel,
   };
 }

@@ -1,60 +1,61 @@
+import {
+  brazilEndOfDay,
+  brazilStartOfDay,
+  getBrazilMonthWindow,
+  shiftBrazilDateKey,
+  toBrazilDateKey,
+} from "@/lib/brazil-dates";
 import { db } from "@/lib/db";
-
-function getMonthRange(reference = new Date()) {
-  const start = new Date(reference.getFullYear(), reference.getMonth(), 1);
-  start.setHours(0, 0, 0, 0);
-
-  const end = new Date(reference.getFullYear(), reference.getMonth() + 1, 0);
-  end.setHours(23, 59, 59, 999);
-
-  return { start, end, daysInMonth: end.getDate() };
-}
+import { buildMonthlyChartSeries } from "@/lib/monthly-series";
 
 export async function getCompanyReports() {
-  const now = new Date();
-  const dayStart = new Date(now);
-  dayStart.setHours(0, 0, 0, 0);
+  const monthWindow = getBrazilMonthWindow();
+  const todayKey = toBrazilDateKey(new Date());
+  const dayStart = brazilStartOfDay(todayKey);
+  const weekStartKey = shiftBrazilDateKey(todayKey, -6);
+  const weekStart = brazilStartOfDay(weekStartKey);
+  const weekEnd = brazilEndOfDay(todayKey);
 
-  const weekStart = new Date(now);
-  weekStart.setHours(0, 0, 0, 0);
-  weekStart.setDate(weekStart.getDate() - 6);
+  const [todaySales, weekSales, monthSales, monthSalesList, monthPaymentsList] =
+    await Promise.all([
+      db.sale.aggregate({
+        _sum: { total: true },
+        where: { soldAt: { gte: dayStart } },
+      }),
+      db.sale.aggregate({
+        _sum: { total: true },
+        where: { soldAt: { gte: weekStart, lte: weekEnd } },
+      }),
+      db.sale.aggregate({
+        _sum: { total: true },
+        where: { soldAt: { gte: monthWindow.start, lte: monthWindow.end } },
+      }),
+      db.sale.findMany({
+        where: { soldAt: { gte: monthWindow.start, lte: monthWindow.end } },
+        select: { soldAt: true, total: true },
+        orderBy: { soldAt: "asc" },
+      }),
+      db.payment.findMany({
+        where: { receivedAt: { gte: monthWindow.start, lte: monthWindow.end } },
+        select: { receivedAt: true, amount: true },
+        orderBy: { receivedAt: "asc" },
+      }),
+    ]);
 
-  const { start: monthStart, end: monthEnd, daysInMonth } = getMonthRange(now);
+  const monthLabel = new Date(monthWindow.year, monthWindow.month - 1, 1).toLocaleDateString(
+    "pt-BR",
+    { month: "long", year: "numeric" },
+  );
 
-  const [todaySales, weekSales, monthSales, monthSalesList] = await Promise.all([
-    db.sale.aggregate({
-      _sum: { total: true },
-      where: { soldAt: { gte: dayStart } },
-    }),
-    db.sale.aggregate({
-      _sum: { total: true },
-      where: { soldAt: { gte: weekStart } },
-    }),
-    db.sale.aggregate({
-      _sum: { total: true },
-      where: { soldAt: { gte: monthStart, lte: monthEnd } },
-    }),
-    db.sale.findMany({
-      where: { soldAt: { gte: monthStart, lte: monthEnd } },
-      select: { soldAt: true, total: true },
-      orderBy: { soldAt: "asc" },
-    }),
-  ]);
+  const salesRows = monthSalesList.map((sale) => ({
+    at: sale.soldAt,
+    amount: Number(sale.total),
+  }));
 
-  const dailyTotals = new Map<number, number>();
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    dailyTotals.set(day, 0);
-  }
-
-  for (const sale of monthSalesList) {
-    const day = sale.soldAt.getDate();
-    dailyTotals.set(day, (dailyTotals.get(day) ?? 0) + Number(sale.total));
-  }
-
-  const monthLabel = monthStart.toLocaleDateString("pt-BR", {
-    month: "long",
-    year: "numeric",
-  });
+  const cashFlowRows = monthPaymentsList.map((payment) => ({
+    at: payment.receivedAt,
+    amount: Number(payment.amount),
+  }));
 
   return {
     summary: {
@@ -63,15 +64,8 @@ export async function getCompanyReports() {
       month: Number(monthSales._sum.total ?? 0),
     },
     monthLabel,
-    monthlySeries: Array.from({ length: daysInMonth }, (_, index) => {
-      const day = index + 1;
-      const date = new Date(now.getFullYear(), now.getMonth(), day);
-      return {
-        date: date.toISOString(),
-        label: String(day).padStart(2, "0"),
-        total: dailyTotals.get(day) ?? 0,
-      };
-    }),
+    monthlySeries: buildMonthlyChartSeries(salesRows, monthWindow),
+    cashFlowSeries: buildMonthlyChartSeries(cashFlowRows, monthWindow),
   };
 }
 
@@ -87,7 +81,7 @@ export type SellerPerformanceRow = {
 };
 
 export async function getSellerPerformanceReport(): Promise<SellerPerformanceRow[]> {
-  const { start: monthStart, end: monthEnd } = getMonthRange();
+  const monthWindow = getBrazilMonthWindow();
 
   const [sellers, paymentPremiumsByUser] = await Promise.all([
     db.user.findMany({
@@ -99,7 +93,7 @@ export async function getSellerPerformanceReport(): Promise<SellerPerformanceRow
           take: 1,
         },
         sales: {
-          where: { soldAt: { gte: monthStart, lte: monthEnd } },
+          where: { soldAt: { gte: monthWindow.start, lte: monthWindow.end } },
           include: {
             items: {
               include: {
@@ -115,7 +109,7 @@ export async function getSellerPerformanceReport(): Promise<SellerPerformanceRow
       by: ["createdById"],
       where: {
         createdById: { not: null },
-        receivedAt: { gte: monthStart, lte: monthEnd },
+        receivedAt: { gte: monthWindow.start, lte: monthWindow.end },
         premiumAmount: { gt: 0 },
       },
       _sum: { premiumAmount: true },
