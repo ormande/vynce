@@ -25,7 +25,10 @@ export async function POST(request: Request) {
     const session = requireApiPermission(await auth(), permissionCatalog.receivablesWrite);
 
     const body = await request.json();
-    const payment = await registerPayment(body, session.user.id);
-    return { payment };
+    const result = await registerPayment(body, session.user.id);
+    if (result && typeof result === "object" && "payment" in result) {
+      return result;
+    }
+    return { payment: result, totalPremium: Number(result.premiumAmount ?? 0) };
   });
 }

@@ -39,15 +39,10 @@ async function applyPaymentToReceivable(
   }
 
   const balance = Number(receivable.balanceDue);
-  if (amount > balance + 0.001) {
-    throw new AppError(
-      `O valor excede o saldo do título (${balance.toFixed(2)}).`,
-      400,
-    );
-  }
+  const premiumAmount = Math.max(0, amount - balance);
 
   const nextPaid = Number(receivable.paidAmount) + amount;
-  const nextBalance = Number(receivable.originalAmount) - nextPaid;
+  const nextBalance = Math.max(0, Number(receivable.originalAmount) - nextPaid);
   const status =
     nextBalance <= 0
       ? ReceivableStatus.PAID
@@ -62,6 +57,7 @@ async function applyPaymentToReceivable(
       saleId: data.saleId || receivable.saleId || undefined,
       createdById,
       amount: new Prisma.Decimal(amount),
+      premiumAmount: new Prisma.Decimal(premiumAmount),
       method: data.method,
       receivedAt: new Date(data.receivedAt),
       note: data.note || undefined,
@@ -151,25 +147,15 @@ async function registerCustomerPayment(
       throw new AppError("Nenhum título em aberto para este cliente.", 404);
     }
 
-    const totalBalance = receivables.reduce(
-      (sum, item) => sum + Number(item.balanceDue),
-      0,
-    );
-
-    if (data.amount > totalBalance + 0.001) {
-      throw new AppError(
-        `O valor informado excede o saldo total do cliente (R$ ${totalBalance.toFixed(2).replace(".", ",")}).`,
-        400,
-      );
-    }
-
     let remaining = data.amount;
     const payments = [];
 
-    for (const receivable of receivables) {
+    for (let index = 0; index < receivables.length; index += 1) {
       if (remaining <= 0) break;
+      const receivable = receivables[index];
       const balance = Number(receivable.balanceDue);
-      const slice = Math.min(remaining, balance);
+      const isLastTitle = index === receivables.length - 1;
+      const slice = isLastTitle ? remaining : Math.min(remaining, balance);
       const payment = await applyPaymentToReceivable(
         tx,
         receivable,
@@ -190,7 +176,11 @@ export async function registerPayment(input: unknown, createdById?: string) {
 
   if (data.customerId && !data.receivableId) {
     const payments = await registerCustomerPayment(data, createdById);
-    return payments[0];
+    const totalPremium = payments.reduce(
+      (sum, payment) => sum + Number(payment.premiumAmount),
+      0,
+    );
+    return { payment: payments[payments.length - 1] ?? payments[0], totalPremium };
   }
 
   if (!data.receivableId) {

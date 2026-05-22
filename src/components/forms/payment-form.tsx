@@ -103,7 +103,20 @@ export function PaymentForm({
       return;
     }
 
-    toast.success("Pagamento registrado com sucesso!");
+    const result = (await response.json()) as {
+      totalPremium?: number;
+      payment?: { premiumAmount?: string | number };
+    };
+    const premium = Number(
+      result.totalPremium ?? result.payment?.premiumAmount ?? 0,
+    );
+    if (premium > 0) {
+      toast.success("Pagamento registrado com sucesso!", {
+        description: `Valor agregado pelo funcionário: ${formatCurrency(premium)}.`,
+      });
+    } else {
+      toast.success("Pagamento registrado com sucesso!");
+    }
     router.refresh();
   }
 
@@ -113,7 +126,8 @@ export function PaymentForm({
         <h3 className="text-lg font-semibold text-[var(--foreground)]">Registrar pagamento</h3>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
           Baixa parcial ou total do saldo do cliente. Vários títulos do mesmo cliente são somados
-          automaticamente; o valor recebido é aplicado do vencimento mais antigo ao mais recente.
+          automaticamente; o valor é aplicado do vencimento mais antigo ao mais recente. Valores
+          acima do saldo são registrados como valor agregado pelo funcionário.
         </p>
       </div>
       <form className="grid w-full gap-4 sm:grid-cols-2 xl:grid-cols-3" onSubmit={handleSubmit}>

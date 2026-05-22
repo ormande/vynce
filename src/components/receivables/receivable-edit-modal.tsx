@@ -83,7 +83,7 @@ export function ReceivableEditModal({
     >
       <div className="absolute inset-0" onClick={onClose} />
       <div
-        className={`relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-[28px] border border-white/20 bg-[var(--panel-strong)] shadow-[0_40px_100px_rgba(0,0,0,0.35)] ${isClosing ? "animate-modal-out" : "animate-modal-in"}`}
+        className={`relative flex max-h-[90vh] w-full max-w-lg flex-col rounded-[28px] border border-white/20 bg-[var(--panel-strong)] shadow-[0_40px_100px_rgba(0,0,0,0.35)] ${isClosing ? "animate-modal-out" : "animate-modal-in"}`}
       >
         <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
           <div>

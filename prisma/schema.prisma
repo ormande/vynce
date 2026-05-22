@@ -355,9 +355,11 @@ model Payment {
   saleId        String?
   receivableId  String?
   createdById   String?
-  method        PaymentMethod
-  amount        Decimal       @db.Decimal(10, 2)
-  receivedAt    DateTime      @default(now())
+  method         PaymentMethod
+  amount         Decimal       @db.Decimal(10, 2)
+  /** Valor recebido acima do saldo do título (valor agregado pelo funcionário). */
+  premiumAmount  Decimal       @default(0) @db.Decimal(10, 2)
+  receivedAt     DateTime      @default(now())
   note          String?
   customer      Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
   sale          Sale?         @relation(fields: [saleId], references: [id], onDelete: SetNull)

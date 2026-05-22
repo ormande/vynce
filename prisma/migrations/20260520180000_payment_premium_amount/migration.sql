@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Payment" ADD COLUMN "premiumAmount" DECIMAL(10,2) NOT NULL DEFAULT 0;

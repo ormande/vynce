@@ -89,27 +89,44 @@ export type SellerPerformanceRow = {
 export async function getSellerPerformanceReport(): Promise<SellerPerformanceRow[]> {
   const { start: monthStart, end: monthEnd } = getMonthRange();
 
-  const sellers = await db.user.findMany({
-    where: { role: { slug: { in: ["seller", "owner"] } } },
-    include: {
-      role: { select: { slug: true } },
-      userBranches: {
-        include: { branch: true },
-        take: 1,
-      },
-      sales: {
-        where: { soldAt: { gte: monthStart, lte: monthEnd } },
-        include: {
-          items: {
-            include: {
-              product: { select: { minPrice: true } },
+  const [sellers, paymentPremiumsByUser] = await Promise.all([
+    db.user.findMany({
+      where: { role: { slug: { in: ["seller", "owner"] } } },
+      include: {
+        role: { select: { slug: true } },
+        userBranches: {
+          include: { branch: true },
+          take: 1,
+        },
+        sales: {
+          where: { soldAt: { gte: monthStart, lte: monthEnd } },
+          include: {
+            items: {
+              include: {
+                product: { select: { minPrice: true } },
+              },
             },
           },
         },
       },
-    },
-    orderBy: { name: "asc" },
-  });
+      orderBy: { name: "asc" },
+    }),
+    db.payment.groupBy({
+      by: ["createdById"],
+      where: {
+        createdById: { not: null },
+        receivedAt: { gte: monthStart, lte: monthEnd },
+        premiumAmount: { gt: 0 },
+      },
+      _sum: { premiumAmount: true },
+    }),
+  ]);
+
+  const paymentPremiumMap = new Map(
+    paymentPremiumsByUser
+      .filter((row) => row.createdById)
+      .map((row) => [row.createdById!, Number(row._sum.premiumAmount ?? 0)]),
+  );
 
   return sellers.map((seller) => {
     let salesCount = 0;
@@ -130,6 +147,8 @@ export async function getSellerPerformanceReport(): Promise<SellerPerformanceRow
         }
       }
     }
+
+    premiumTotal += paymentPremiumMap.get(seller.id) ?? 0;
 
     const displayName = seller.name?.trim() || seller.email || "Sem nome";
 

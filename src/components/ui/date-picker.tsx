@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   addMonths,
   eachDayOfInterval,
@@ -22,6 +23,9 @@ import { ptBR } from "date-fns/locale";
 import { Calendar, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+
+/** Acima de modais (z-[1000]) e painéis suspensos comuns. */
+const PANEL_Z_INDEX = 1100;
 
 function parseDateValue(value?: string) {
   if (!value) return null;
@@ -51,8 +55,19 @@ function computePanelCoords(
 ): PanelCoords {
   const spaceBelow = window.innerHeight - trigger.bottom - PANEL_GAP_PX;
   const spaceAbove = trigger.top - PANEL_GAP_PX;
-  const openUp =
-    spaceBelow < panelHeight && spaceAbove >= spaceBelow;
+  const fitsBelow = spaceBelow >= panelHeight;
+  const fitsAbove = spaceAbove >= panelHeight;
+
+  let openUp: boolean;
+  if (fitsBelow && !fitsAbove) {
+    openUp = false;
+  } else if (fitsAbove && !fitsBelow) {
+    openUp = true;
+  } else if (!fitsBelow && !fitsAbove) {
+    openUp = spaceAbove >= spaceBelow;
+  } else {
+    openUp = spaceBelow < spaceAbove;
+  }
 
   let top = openUp
     ? trigger.top - panelHeight - PANEL_GAP_PX
@@ -99,6 +114,7 @@ export function DatePicker({
   clearable = false,
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [viewDate, setViewDate] = useState(() => parseDateValue(value) ?? new Date());
   const [panelCoords, setPanelCoords] = useState<PanelCoords | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -121,6 +137,10 @@ export function DatePicker({
 
     return eachDayOfInterval({ start: gridStart, end: gridEnd });
   }, [viewDate]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (selectedDate) {
@@ -202,6 +222,103 @@ export function DatePicker({
     setOpen(false);
   }
 
+  const calendarPanel =
+    open && mounted ? (
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-label="Calendário"
+        style={
+          panelCoords
+            ? { top: panelCoords.top, left: panelCoords.left, zIndex: PANEL_Z_INDEX }
+            : {
+                top: -9999,
+                left: 0,
+                visibility: "hidden" as const,
+                zIndex: PANEL_Z_INDEX,
+              }
+        }
+        className={cn(
+          "fixed w-[17.5rem] overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[rgba(255,252,248,0.98)] p-3 shadow-[0_18px_50px_rgba(15,23,42,0.14)] backdrop-blur",
+          panelCoords?.placement === "top" ? "animate-fade-in" : "animate-slide-down",
+        )}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            className="rounded-xl p-2 text-[var(--muted-foreground)] transition hover:bg-[rgba(17,30,27,0.06)] hover:text-[var(--foreground)]"
+            onClick={() => setViewDate((current) => subMonths(current, 1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <p className="text-xs font-semibold capitalize text-[var(--foreground)]">
+            {format(viewDate, "MMMM yyyy", { locale: ptBR })}
+          </p>
+          <button
+            type="button"
+            className="rounded-xl p-2 text-[var(--muted-foreground)] transition hover:bg-[rgba(17,30,27,0.06)] hover:text-[var(--foreground)]"
+            onClick={() => setViewDate((current) => addMonths(current, 1))}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mb-1.5 grid grid-cols-7 gap-0.5">
+          {["D", "S", "T", "Q", "Q", "S", "S"].map((weekday, index) => (
+            <span
+              key={`${weekday}-${index}`}
+              className="py-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-[var(--muted-foreground)]"
+            >
+              {weekday}
+            </span>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-0.5">
+          {calendarDays.map((day) => {
+            const selected = selectedDate ? isSameDay(day, selectedDate) : false;
+            const outsideMonth = !isSameMonth(day, viewDate);
+            const disabledDay = isDisabledDay(day);
+
+            return (
+              <button
+                key={day.toISOString()}
+                type="button"
+                disabled={disabledDay}
+                className={cn(
+                  "mx-auto flex h-8 w-8 items-center justify-center rounded-lg text-xs transition",
+                  selected
+                    ? "bg-accent text-accent-foreground shadow-md shadow-[rgba(19,41,35,0.16)]"
+                    : "text-[var(--foreground)] hover:bg-[rgba(17,30,27,0.06)]",
+                  outsideMonth && !selected && "text-[var(--muted-foreground)]/60",
+                  isToday(day) && !selected && "ring-1 ring-[var(--accent)]/30",
+                  disabledDay && "cursor-not-allowed opacity-35 hover:bg-transparent",
+                )}
+                onClick={() => handleSelectDay(day)}
+              >
+                {format(day, "d")}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-2 flex justify-end">
+          <button
+            type="button"
+            className="rounded-xl px-3 py-1.5 text-xs font-semibold text-[var(--accent)] transition hover:bg-[rgba(49,91,77,0.12)]"
+            onClick={() => {
+              const today = new Date();
+              setViewDate(today);
+              handleSelectDay(today);
+            }}
+          >
+            Hoje
+          </button>
+        </div>
+      </div>
+    ) : null;
+
   return (
     <div ref={containerRef} className={cn("relative", className)}>
       <button
@@ -253,95 +370,7 @@ export function DatePicker({
         </span>
       </button>
 
-      {open ? (
-        <div
-          ref={panelRef}
-          role="dialog"
-          aria-label="Calendário"
-          style={
-            panelCoords
-              ? { top: panelCoords.top, left: panelCoords.left }
-              : { top: -9999, left: 0, visibility: "hidden" as const }
-          }
-          className={cn(
-            "fixed z-[200] w-[17.5rem] overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[rgba(255,252,248,0.98)] p-3 shadow-[0_18px_50px_rgba(15,23,42,0.14)] backdrop-blur",
-            panelCoords?.placement === "top" ? "animate-fade-in" : "animate-slide-down",
-          )}
-        >
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <button
-              type="button"
-              className="rounded-xl p-2 text-[var(--muted-foreground)] transition hover:bg-[rgba(17,30,27,0.06)] hover:text-[var(--foreground)]"
-              onClick={() => setViewDate((current) => subMonths(current, 1))}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <p className="text-xs font-semibold capitalize text-[var(--foreground)]">
-              {format(viewDate, "MMMM yyyy", { locale: ptBR })}
-            </p>
-            <button
-              type="button"
-              className="rounded-xl p-2 text-[var(--muted-foreground)] transition hover:bg-[rgba(17,30,27,0.06)] hover:text-[var(--foreground)]"
-              onClick={() => setViewDate((current) => addMonths(current, 1))}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div className="mb-1.5 grid grid-cols-7 gap-0.5">
-            {["D", "S", "T", "Q", "Q", "S", "S"].map((weekday, index) => (
-              <span
-                key={`${weekday}-${index}`}
-                className="py-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-[var(--muted-foreground)]"
-              >
-                {weekday}
-              </span>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-0.5">
-            {calendarDays.map((day) => {
-              const selected = selectedDate ? isSameDay(day, selectedDate) : false;
-              const outsideMonth = !isSameMonth(day, viewDate);
-              const disabledDay = isDisabledDay(day);
-
-              return (
-                <button
-                  key={day.toISOString()}
-                  type="button"
-                  disabled={disabledDay}
-                  className={cn(
-                    "mx-auto flex h-8 w-8 items-center justify-center rounded-lg text-xs transition",
-                    selected
-                      ? "bg-accent text-accent-foreground shadow-md shadow-[rgba(19,41,35,0.16)]"
-                      : "text-[var(--foreground)] hover:bg-[rgba(17,30,27,0.06)]",
-                    outsideMonth && !selected && "text-[var(--muted-foreground)]/60",
-                    isToday(day) && !selected && "ring-1 ring-[var(--accent)]/30",
-                    disabledDay && "cursor-not-allowed opacity-35 hover:bg-transparent",
-                  )}
-                  onClick={() => handleSelectDay(day)}
-                >
-                  {format(day, "d")}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-2 flex justify-end">
-            <button
-              type="button"
-              className="rounded-xl px-3 py-1.5 text-xs font-semibold text-[var(--accent)] transition hover:bg-[rgba(49,91,77,0.12)]"
-              onClick={() => {
-                const today = new Date();
-                setViewDate(today);
-                handleSelectDay(today);
-              }}
-            >
-              Hoje
-            </button>
-          </div>
-        </div>
-      ) : null}
+      {calendarPanel && mounted ? createPortal(calendarPanel, document.body) : null}
     </div>
   );
 }
