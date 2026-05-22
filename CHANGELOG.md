@@ -5,6 +5,22 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] — 2026-05-20
+
+### Adicionado
+- **Pagamento acima do saldo em Contas a receber**: permite receber mais que o débito do título; o excedente é gravado em `Payment.premiumAmount` (valor agregado pelo funcionário), sem crédito para o cliente.
+- **Relatório de funcionários**: coluna **Valor agregado** inclui `premiumAmount` dos pagamentos de recebíveis registrados no mês.
+- Migration `20260520180000_payment_premium_amount` (`premiumAmount` em `Payment`).
+
+### Alterado
+- **Baixa por cliente (FIFO)**: pagamento parcial continua rateando do vencimento mais antigo; excedente só no último título da fila; toast informa valor agregado quando houver.
+- **Formulário de pagamento**: texto explicando valor acima do saldo e ausência de crédito ao cliente.
+
+### Corrigido
+- **`DatePicker` em modais**: calendário via portal em `document.body`, `z-index` acima dos modais (`1100`) e flip para cima quando falta espaço — corrige edição de datas em vendas/registros e contas a receber.
+
+---
+
 ## [1.10.0] — 2026-05-20
 
 ### Adicionado
